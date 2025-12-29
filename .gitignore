@@ -54,3 +54,8 @@ yarn-error.log*
 # Other
 *.swp
 
+
+# env
+backend/.env
+.env
+
