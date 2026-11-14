@@ -1,6 +1,6 @@
 # AI Crossword – Intelligent Puzzle Generator
 
-**AI Crossword** is an intelligent crossword puzzle generator built with **FastAPI** and **OpenAI GPT**.
+**AI Crossword** is an intelligent crossword puzzle generator built with **FastAPI** and **Claude**.
 It dynamically creates crossword grids and clues around any given **theme**, blending language, creativity, and logic.
 
 This backend powers the upcoming **AI Crossword Web App**, which brings interactive, AI-driven puzzles to life.
@@ -8,7 +8,7 @@ This backend powers the upcoming **AI Crossword Web App**, which brings interact
 
 ## Highlights
 
-* AI-generated puzzles – every crossword is unique, created from scratch by GPT
+* AI-generated puzzles – every crossword is unique, created from scratch by Claude
 * Theme-based generation – input any topic: mythology, space, cinema, animals, etc.
 * FastAPI-powered API – lightweight, fast, and ready for frontend integration
 * Clean architecture – modular code structure for easy expansion
@@ -102,7 +102,7 @@ Generates a crossword puzzle based on a given theme and grid size.
 | ----------- | ------------------ |
 | Language    | Python 3.10+       |
 | Framework   | FastAPI            |
-| AI Model    | OpenAI GPT         |
+| AI Model    | Claude Haiku 5.5   |
 | Server      | Uvicorn            |
 | Environment | python-dotenv      |
 | API Docs    | Swagger UI (/docs) |
@@ -117,10 +117,13 @@ Generates a crossword puzzle based on a given theme and grid size.
    cd ai-crossword-backend
    ```
 
-2. **Set Up Virtual Environment**
+2. **Set Up Virtual Environment** (needs Python 3.10 or newer; the installer
+   at [python.org/downloads](https://www.python.org/downloads/) works on Mac
+   and Windows)
 
    ```bash
-   python -m venv venv
+   cd backend
+   python3.14 -m venv venv  # or whichever python3.x you installed
    source venv/bin/activate  # for Mac/Linux
    # or: venv\Scripts\activate  # for Windows
    ```
@@ -128,13 +131,13 @@ Generates a crossword puzzle based on a given theme and grid size.
 3. **Install Dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
    ```
 
 4. **Create a `.env` File**
 
    ```
-   OPENAI_API_KEY=your_api_key_here
+   ANTHROPIC_API_KEY=your_api_key_here
    ```
 
 5. **Run the Server**
@@ -156,7 +159,7 @@ ai-crossword/
 │   ├── routes/
 │   │   └── crossword.py
 │   ├── services/
-│   │   └── openai_service.py
+│   │   └── ai_service.py
 │   ├── utils/
 │   │   └── grid_builder.py
 │   ├── tests/
@@ -167,6 +170,84 @@ ai-crossword/
 │   └── (coming soon)
 └── README.md
 ```
+
+
+## Testing
+
+Every change (yours or an AI's) has to pass the tests before it can be pushed.
+
+**One-time setup on your computer**
+
+```bash
+cd backend && source venv/bin/activate && pip install -r requirements-dev.txt && cd ..
+cd frontend && npm install && cd ..
+git config core.hooksPath .githooks   # turns on the "tests before push" check
+```
+
+**Run all checks by hand**
+
+```bash
+./scripts/test-all.sh
+```
+
+| What | Where | Run only this part |
+| ---- | ----- | ------------------ |
+| Puzzle generator, AI replies, API | `backend/tests/` | `cd backend && python -m pytest` |
+| Puzzle display, gameplay, backend call | `frontend/src/__tests__/` | `cd frontend && npm test` |
+
+* The tests never call the real AI, so they are free and need no API key.
+* `git push` runs everything first and is cancelled if anything fails.
+* GitHub runs the same checks on every push and pull request (`.github/workflows/tests.yml`).
+
+**Known bugs.** Some tests describe how the app *should* behave but does not yet.
+They are marked `@known_bug(...)` in the backend and `it.fails('KNOWN BUG: ...')`
+in the frontend, and show up as "xfailed" / "expected fail" without blocking pushes.
+When a bug is fixed, its test starts passing and the run fails with a message
+asking you to remove the marker. From then on the test protects the fix.
+
+
+## How a puzzle is built
+
+1. The AI is asked for about 30 words and clues on the theme.
+2. A 5x5 newspaper-style grid is filled: themed words go in wherever they fit
+   (usually about 3 of the 10 answers) and common English words from
+   `backend/data/words.txt` fill the rest, so every letter belongs to an across
+   word and a down word.
+3. The AI writes clues for the non-themed words.
+4. If step 2 or 3 is not possible (AI offline, or a grid larger than 5x5), a
+   simpler layout is used that contains only the AI's words crossing each other.
+
+Settings (environment variables on the backend):
+
+| Variable | What it does | Default |
+| -------- | ------------ | ------- |
+| `ANTHROPIC_API_KEY` | Your Claude API key (required) | none |
+| `AI_MODEL` | Which Claude model writes words and clues | `claude-haiku-5-5` |
+| `AI_EFFORT` | How much the model thinks: `low`, `medium` or `high` | `low` |
+| `ALLOWED_ORIGINS` | Website addresses allowed to call the backend, comma separated | local dev only |
+| `ALLOWED_ORIGIN_REGEX` | Same, as a pattern | none |
+
+The website reads the backend's address from `VITE_API_URL` when it is built
+(default: `http://127.0.0.1:8000`).
+
+The word list comes from SCOWL (see `backend/data/WORDS_LICENSE.txt`).
+
+
+## Going live (Render)
+
+`render.yaml` describes the whole setup: a free web service for the backend and
+a free static site for the website.
+
+1. Create an account at [render.com](https://render.com) and connect GitHub.
+2. Choose **New > Blueprint** and pick this repository.
+3. When asked, paste your `ANTHROPIC_API_KEY`. Click **Apply**.
+4. Open the address of the `ai-mini-crossword` site when both services are green.
+
+Every push to `main` then deploys automatically.
+
+On the free plan the backend sleeps after 15 minutes without visitors, and the
+next puzzle takes about a minute while it wakes up. Changing `plan: free` to
+`plan: starter` in `render.yaml` keeps it awake.
 
 
 ## Next Steps

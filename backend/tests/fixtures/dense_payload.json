@@ -1,0 +1,98 @@
+{
+  "_comment": "A real example of the dense 5x5 puzzle the backend returns (theme: ocean; clue text for non-theme words is placeholder). Used by frontend/src/__tests__/contract.test.ts.",
+  "payload": {
+    "grid": [
+      [
+        "#",
+        "W",
+        "I",
+        "F",
+        "E"
+      ],
+      [
+        "#",
+        "H",
+        "O",
+        "L",
+        "E"
+      ],
+      [
+        "F",
+        "A",
+        "T",
+        "A",
+        "L"
+      ],
+      [
+        "A",
+        "L",
+        "A",
+        "S",
+        "#"
+      ],
+      [
+        "D",
+        "E",
+        "S",
+        "K",
+        "#"
+      ]
+    ],
+    "clues": {
+      "across": [
+        {
+          "number": 1,
+          "clue": "Example clue for a 4-letter word (W...)",
+          "answer": "WIFE"
+        },
+        {
+          "number": 5,
+          "clue": "Example clue for a 4-letter word (H...)",
+          "answer": "HOLE"
+        },
+        {
+          "number": 6,
+          "clue": "Example clue for a 5-letter word (F...)",
+          "answer": "FATAL"
+        },
+        {
+          "number": 7,
+          "clue": "Example clue for a 4-letter word (A...)",
+          "answer": "ALAS"
+        },
+        {
+          "number": 8,
+          "clue": "Example clue for a 4-letter word (D...)",
+          "answer": "DESK"
+        }
+      ],
+      "down": [
+        {
+          "number": 1,
+          "clue": "Largest sea mammal",
+          "answer": "WHALE"
+        },
+        {
+          "number": 2,
+          "clue": "Example clue for a 5-letter word (I...)",
+          "answer": "IOTAS"
+        },
+        {
+          "number": 3,
+          "clue": "Example clue for a 5-letter word (F...)",
+          "answer": "FLASK"
+        },
+        {
+          "number": 4,
+          "clue": "Snakelike fish",
+          "answer": "EEL"
+        },
+        {
+          "number": 6,
+          "clue": "Example clue for a 3-letter word (F...)",
+          "answer": "FAD"
+        }
+      ]
+    }
+  }
+}

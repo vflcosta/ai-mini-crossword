@@ -6,6 +6,8 @@ interface CrosswordGridProps {
   grid: Cell[][];
   userAnswers: string[][];
   selectedCell: { row: number; col: number } | null;
+  /** direction of the word being filled in; typing and Backspace follow it */
+  direction?: "across" | "down";
   onCellClick: (row: number, col: number) => void;
   onAnswerChange: (row: number, col: number, value: string) => void;
 }
@@ -16,6 +18,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
   grid,
   userAnswers,
   selectedCell,
+  direction = "across",
   onCellClick,
   onAnswerChange,
 }) => {
@@ -47,6 +50,14 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
       const currentVal = userAnswers[row][col];
       if (currentVal) {
         onAnswerChange(row, col, "");
+        return;
+      }
+      if (direction === "down") {
+        // move up within the down word
+        if (!isBlack(row - 1, col)) {
+          onCellClick(row - 1, col);
+          onAnswerChange(row - 1, col, "");
+        }
         return;
       }
       // move to previous non-black cell in this row
@@ -93,18 +104,23 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
     const value = e.target.value.toUpperCase().slice(-1);
     onAnswerChange(row, col, value);
 
-    // if user typed a letter, move to the next non-black cell in the same row
-    if (value) {
-      let nextRow = row;
-      let nextCol = col + 1;
+    if (!value) return;
 
-      while (nextCol < grid[0].length && isBlack(nextRow, nextCol)) {
-        nextCol++;
+    if (direction === "down") {
+      // filling in a down word: move to the square below, stop at the end of the word
+      if (!isBlack(row + 1, col)) {
+        onCellClick(row + 1, col);
       }
+      return;
+    }
 
-      if (nextCol < grid[0].length && !isBlack(nextRow, nextCol)) {
-        onCellClick(nextRow, nextCol);
-      }
+    // across: move to the next non-black cell in the same row
+    let nextCol = col + 1;
+    while (nextCol < grid[0].length && isBlack(row, nextCol)) {
+      nextCol++;
+    }
+    if (nextCol < grid[0].length) {
+      onCellClick(row, nextCol);
     }
   };
 

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs before every `git push`. If any test fails, the push is cancelled.
+# Turn it on once per computer with:  git config core.hooksPath .githooks
+root="$(git rev-parse --show-toplevel)"
+if ! "$root/scripts/test-all.sh"; then
+  echo
+  echo "Push cancelled: fix the failing tests above, then push again."
+  exit 1
+fi

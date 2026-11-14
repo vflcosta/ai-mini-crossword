@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword } from "./api";
+import { GRID_SIZE } from "./config";
 import { Crossword, Clue } from "./types/crossword";
 
 export default function App() {
@@ -69,12 +70,17 @@ export default function App() {
     console.log(`Generated "${label}" crossword`);
   };
 
-  const handleGenerateFromTheme = async () => {
+  // Generate a puzzle for the given theme text (empty = random mix).
+  // The theme is passed in explicitly so callers never depend on React state
+  // that has not updated yet (e.g. the theme chips).
+  const generate = async (themeText: string) => {
+    const wanted = themeText.trim();
+    const label = wanted || "Random Knowledge Mix";
     try {
       setLoading(true);
-      const payload = await generateCrossword(theme.trim() || null, 7);
-      const cw = backendToCrossword(payload, theme.trim() || "Themed");
-      startGame(cw, theme.trim() || "Themed");
+      const payload = await generateCrossword(wanted || null, GRID_SIZE);
+      const cw = backendToCrossword(payload, label);
+      startGame(cw, label);
     } catch (err) {
       console.error(err);
       alert("Could not generate crossword.");
@@ -83,19 +89,9 @@ export default function App() {
     }
   };
 
-  const handleRandom = async () => {
-    try {
-      setLoading(true);
-      const payload = await generateCrossword(null, 7);
-      const cw = backendToCrossword(payload, "Random Knowledge Mix");
-      startGame(cw, "Random Knowledge Mix");
-    } catch (err) {
-      console.error(err);
-      alert("Could not generate crossword.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleGenerateFromTheme = () => generate(theme);
+
+  const handleRandom = () => generate("");
 
   // find clue for cell & direction
   const findClueForCell = (
@@ -272,9 +268,10 @@ export default function App() {
                   <button
                     key={label}
                     className="pill-btn"
-                    onClick={async () => {
+                    disabled={loading}
+                    onClick={() => {
                       setTheme(label);
-                      await handleGenerateFromTheme();
+                      generate(label);
                     }}
                   >
                     {label}
@@ -307,6 +304,7 @@ export default function App() {
                 grid={currentCrossword.grid}
                 userAnswers={userAnswers}
                 selectedCell={selectedCell}
+                direction={currentDirection}
                 onCellClick={handleCellClick}
                 onAnswerChange={handleAnswerChange}
               />

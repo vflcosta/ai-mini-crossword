@@ -1,0 +1,42 @@
+# Hosting setup for Render (https://render.com).
+# In Render: New > Blueprint > pick this repository. Render reads this file and
+# creates both services. The only thing it asks you for is ANTHROPIC_API_KEY.
+services:
+  # ---- the backend (generates puzzles, talks to Claude) ----
+  - type: web
+    name: ai-mini-crossword-api
+    runtime: python
+    plan: free          # sleeps after 15 idle minutes; switch to "starter" to keep it awake
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: ANTHROPIC_API_KEY
+        sync: false     # secret: you type it into Render, it is never stored in git
+      - key: AI_MODEL
+        value: claude-haiku-5-5
+      - key: AI_EFFORT
+        value: low
+      # which websites may call the backend: this site's onrender.com address
+      - key: ALLOWED_ORIGIN_REGEX
+        value: https://ai-mini-crossword(-[a-z0-9]+)?\.onrender\.com
+      # When you add your own domain, add an ALLOWED_ORIGINS variable in the
+      # Render dashboard with its address, e.g. https://www.mycrossword.com
+
+  # ---- the website (what players open) ----
+  - type: web
+    name: ai-mini-crossword
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
+    envVars:
+      # the website needs the backend's address; Render fills it in
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ai-mini-crossword-api
+          envVarKey: RENDER_EXTERNAL_URL

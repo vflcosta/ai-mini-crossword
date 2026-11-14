@@ -2,6 +2,7 @@
 import { BackendPayload } from "./types/api";
 import { backendToCrossword } from "./utils/transform";
 import type { Crossword } from "./types/crossword";
+import { API_BASE, GRID_SIZE } from "./config";
 
 /**
  * Original-style call used in your zip:
@@ -10,9 +11,9 @@ import type { Crossword } from "./types/crossword";
  */
 export async function generateCrossword(
   theme?: string | null,
-  size: number = 7
+  size: number = GRID_SIZE
 ): Promise<BackendPayload> {
-  const res = await fetch("http://127.0.0.1:8000/generate-crossword", {
+  const res = await fetch(`${API_BASE}/generate-crossword`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -36,7 +37,7 @@ export async function generateCrossword(
  * fetches the backend and immediately turns it into a Crossword
  */
 export async function fetchCrossword(theme?: string): Promise<Crossword> {
-  const payload = await generateCrossword(theme ?? null, 7);
+  const payload = await generateCrossword(theme ?? null, GRID_SIZE);
   return backendToCrossword(payload, theme || "Random");
 }
 
