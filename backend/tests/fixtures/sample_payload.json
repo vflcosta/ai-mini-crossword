@@ -1,0 +1,78 @@
+{
+  "_comment": "Shared by backend/tests/test_contract.py and frontend/src/__tests__/contract.test.ts. It is the exact JSON the backend returns for these words.",
+  "words": [
+    {
+      "answer": "PLANT",
+      "clue": "It grows in a pot"
+    },
+    {
+      "answer": "TREE",
+      "clue": "It has a trunk"
+    },
+    {
+      "answer": "LEAF",
+      "clue": "It falls in autumn"
+    }
+  ],
+  "size": 5,
+  "payload": {
+    "grid": [
+      [
+        "P",
+        "L",
+        "A",
+        "N",
+        "T"
+      ],
+      [
+        "#",
+        "E",
+        "#",
+        "#",
+        "R"
+      ],
+      [
+        "#",
+        "A",
+        "#",
+        "#",
+        "E"
+      ],
+      [
+        "#",
+        "F",
+        "#",
+        "#",
+        "E"
+      ],
+      [
+        "#",
+        "#",
+        "#",
+        "#",
+        "#"
+      ]
+    ],
+    "clues": {
+      "across": [
+        {
+          "number": 1,
+          "clue": "It grows in a pot",
+          "answer": "PLANT"
+        }
+      ],
+      "down": [
+        {
+          "number": 2,
+          "clue": "It falls in autumn",
+          "answer": "LEAF"
+        },
+        {
+          "number": 3,
+          "clue": "It has a trunk",
+          "answer": "TREE"
+        }
+      ]
+    }
+  }
+}

@@ -169,6 +169,40 @@ ai-crossword/
 ```
 
 
+## Testing
+
+Every change (yours or an AI's) has to pass the tests before it can be pushed.
+
+**One-time setup on your computer**
+
+```bash
+cd backend && source venv/bin/activate && pip install -r requirements-dev.txt && cd ..
+cd frontend && npm install && cd ..
+git config core.hooksPath .githooks   # turns on the "tests before push" check
+```
+
+**Run all checks by hand**
+
+```bash
+./scripts/test-all.sh
+```
+
+| What | Where | Run only this part |
+| ---- | ----- | ------------------ |
+| Puzzle generator, AI replies, API | `backend/tests/` | `cd backend && python -m pytest` |
+| Puzzle display, gameplay, backend call | `frontend/src/__tests__/` | `cd frontend && npm test` |
+
+* The tests never call the real AI, so they are free and need no API key.
+* `git push` runs everything first and is cancelled if anything fails.
+* GitHub runs the same checks on every push and pull request (`.github/workflows/tests.yml`).
+
+**Known bugs.** Some tests describe how the app *should* behave but does not yet.
+They are marked `@known_bug(...)` in the backend and `it.fails('KNOWN BUG: ...')`
+in the frontend, and show up as "xfailed" / "expected fail" without blocking pushes.
+When a bug is fixed, its test starts passing and the run fails with a message
+asking you to remove the marker. From then on the test protects the fix.
+
+
 ## Next Steps
 
 * Integrate frontend (React or Next.js)
