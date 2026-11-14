@@ -302,3 +302,65 @@ body {
   gap: 0.75rem;
   justify-content: center;
 }
+/* === notices on the home screen (limits, errors) === */
+.notice {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px 36px 12px 14px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.notice-limit {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+.notice-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.notice-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.notice-body {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.notice-action {
+  margin-top: 10px;
+  border: none;
+  border-radius: 99px;
+  padding: 6px 14px;
+  background: #111827;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.notice-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+}
+.limit-hint,
+.daily-caption,
+.loading-hint {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  text-align: center;
+}
+.loading-hint {
+  color: #4338ca;
+}
+.reveal-summary {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}

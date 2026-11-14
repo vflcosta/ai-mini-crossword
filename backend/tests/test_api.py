@@ -6,6 +6,14 @@ import main
 
 client = TestClient(main.app)
 
+
+@pytest.fixture(autouse=True)
+def fresh_puzzles(monkeypatch):
+    """Every test starts with an empty puzzle cache and unused limits."""
+    service = main.make_puzzle_service()
+    monkeypatch.setattr(main, "puzzles", service)
+    return service
+
 ANIMALS = dict(across=[("TIGER", "Striped cat"), ("OTTER", "River swimmer")],
                down=[("GOAT", "Bearded farm animal"), ("RAT", "Small rodent")])
 
@@ -21,7 +29,7 @@ def test_generate_returns_a_grid_and_numbered_clues(fake_ai):
     res = client.post("/generate-crossword", json={"theme": "animals", "size": 5})
     assert res.status_code == 200
     body = res.json()
-    assert set(body) == {"grid", "clues"}
+    assert set(body) == {"grid", "clues", "meta"}
     assert len(body["grid"]) == 5 and all(len(row) == 5 for row in body["grid"])
     assert set(body["clues"]) == {"across", "down"}
     for direction in ("across", "down"):
@@ -61,6 +69,13 @@ def test_still_returns_a_puzzle_when_the_ai_is_down(fake_ai):
     assert res.json()["clues"]["across"]
 
 
+def test_built_in_puzzle_is_not_marked_as_coming_from_the_ai(fake_ai):
+    fake_ai.reply_error(ConnectionError("no internet"))
+    fake_ai.reply_error(ConnectionError("no internet"))
+    body = client.post("/generate-crossword", json={"theme": "animals", "size": 5}).json()
+    assert "fallback" not in body  # internal flag, not sent to the app
+
+
 def test_generator_error_becomes_a_400(monkeypatch):
     monkeypatch.setattr(main, "gen_crossword", lambda **kw: {"error": "Could not generate clues."})
     res = client.post("/generate-crossword", json={"theme": "x", "size": 7})
@@ -68,12 +83,13 @@ def test_generator_error_becomes_a_400(monkeypatch):
     assert res.json()["detail"] == "Could not generate clues."
 
 
-def test_unexpected_crash_becomes_a_500(monkeypatch):
+def test_unexpected_crash_becomes_a_500_without_leaking_details(monkeypatch):
     def boom(**kw):
-        raise RuntimeError("boom")
+        raise RuntimeError("secret internal detail")
     monkeypatch.setattr(main, "gen_crossword", boom)
     res = client.post("/generate-crossword", json={"theme": "x", "size": 7})
     assert res.status_code == 500
+    assert "secret" not in res.text
 
 
 def test_non_numeric_size_is_rejected():

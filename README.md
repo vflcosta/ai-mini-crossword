@@ -217,6 +217,11 @@ asking you to remove the marker. From then on the test protects the fix.
 4. If step 2 or 3 is not possible (AI offline, or a grid larger than 5x5), a
    simpler layout is used that contains only the AI's words crossing each other.
 
+Each puzzle is kept for the rest of the day and shared: "Today's Knowledge Mix"
+(no theme) is made once a day, and so is each theme. Only brand-new puzzles
+count towards the daily limits; today's puzzle and the featured themes never
+do. See `backend/utils/puzzle_service.py`.
+
 Settings (environment variables on the backend):
 
 | Variable | What it does | Default |
@@ -224,6 +229,10 @@ Settings (environment variables on the backend):
 | `ANTHROPIC_API_KEY` | Your Claude API key (required) | none |
 | `AI_MODEL` | Which Claude model writes words and clues | `claude-haiku-5-5` |
 | `AI_EFFORT` | How much the model thinks: `low`, `medium` or `high` | `low` |
+| `PLAYER_DAILY_LIMIT` | New themed puzzles one player can make per day | `10` |
+| `GLOBAL_DAILY_LIMIT` | New puzzles all players together can make per day | `500` |
+| `PUZZLE_TIMEZONE` | When a new day (and today's puzzle) starts | `Europe/Zurich` |
+| `CLIENT_IP_HEADER` | Header with the visitor's real address behind a proxy | none (`True-Client-IP` on Render) |
 | `ALLOWED_ORIGINS` | Website addresses allowed to call the backend, comma separated | local dev only |
 | `ALLOWED_ORIGIN_REGEX` | Same, as a pattern | none |
 

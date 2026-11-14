@@ -143,6 +143,7 @@ def test_full_puzzle_is_dense_and_every_word_has_its_own_clue(fake_ai):
     fake_ai.reply_words(across=OCEAN)
     fake_ai.write_fill_clues(lambda answer: f"Fill clue #{len(answer)}")
     puzzle = generate_crossword("ocean", 5)
+    assert puzzle["fallback"] is False
 
     assert sum(row.count("#") for row in puzzle["grid"]) <= 6
     in_grid = sorted((d, w) for d, _, _, w in letter_runs(puzzle["grid"], min_len=1))
@@ -213,6 +214,7 @@ def test_ai_outage_gives_the_built_in_puzzle_without_extra_ai_calls(fake_ai):
     fake_ai.reply_error(ConnectionError("no internet"))
     fake_ai.reply_error(ConnectionError("no internet"))
     puzzle = generate_crossword("ocean", 5)
+    assert puzzle["fallback"] is True
     built_in = {w["answer"] for d in ("across", "down") for w in _fallback()[d]}
     assert {c["answer"] for c in all_clues(puzzle)} <= built_in
     assert len(fake_ai.calls) == 2

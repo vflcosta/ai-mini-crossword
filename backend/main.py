@@ -1,10 +1,15 @@
+import logging
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
 from utils.crossword_gen import generate_crossword as gen_crossword
+from utils.puzzle_service import LimitReached, PuzzleService
+
+logger = logging.getLogger("crossword")
 
 # ---------------------------------------------------------
 # Initialize app
@@ -44,6 +49,44 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------
+# Daily puzzles and limits (see utils/puzzle_service.py)
+#   PLAYER_DAILY_LIMIT  new themed puzzles one player can make per day (10)
+#   GLOBAL_DAILY_LIMIT  new puzzles all players together can make per day (500)
+#   PUZZLE_TIMEZONE     when a new day starts (Europe/Zurich)
+#   CLIENT_IP_HEADER    header holding the visitor's real address when the
+#                       backend sits behind a proxy; on Render: True-Client-IP
+# ---------------------------------------------------------
+def make_puzzle_service(**overrides) -> PuzzleService:
+    settings = dict(
+        player_daily_limit=int(os.getenv("PLAYER_DAILY_LIMIT", "10")),
+        global_daily_limit=int(os.getenv("GLOBAL_DAILY_LIMIT", "500")),
+        timezone=os.getenv("PUZZLE_TIMEZONE", "Europe/Zurich"),
+    )
+    settings.update(overrides)
+    # looked up on every call, so tests can swap gen_crossword
+    return PuzzleService(lambda theme, size: gen_crossword(theme=theme, size=size), **settings)
+
+
+puzzles = make_puzzle_service()
+
+
+def client_id(request: Request) -> str:
+    """Who is asking, for the per-player limit: the visitor's IP address."""
+    header = os.getenv("CLIENT_IP_HEADER", "").strip()
+    if header:
+        value = request.headers.get(header, "").split(",")[0].strip()
+        if value:
+            return value
+    return request.client.host if request.client else "unknown"
+
+
+LIMIT_MESSAGES = {
+    "player_limit": "You've made all your new puzzles for today.",
+    "daily_capacity": "So many puzzles were made today that new themes are paused until tomorrow.",
+}
+
+
+# ---------------------------------------------------------
 # Request schema
 # ---------------------------------------------------------
 class GenerateRequest(BaseModel):
@@ -60,23 +103,36 @@ def root():
 
 
 @app.post("/generate-crossword")
-def generate_crossword_ep(req: GenerateRequest):
+def generate_crossword_ep(req: GenerateRequest, request: Request):
     """
-    POST endpoint to generate a crossword.
     Body: {"theme": <string or null>, "size": <int>}
+    No theme = today's puzzle (the same for everyone, new every day).
+
+    200: {"grid", "clues", "meta": {"cached", "free", "new_puzzles_left", "resets_at"}}
+    429: {"detail": {"code", "message", "limit", "resets_at", "retry_after_seconds"}}
     """
     try:
-        result = gen_crossword(theme=req.theme, size=req.size)
+        result, meta = puzzles.get_puzzle(req.theme, req.size, client_id(request))
+    except LimitReached as limit:
+        wait = max(1, int((limit.resets_at - puzzles._now()).total_seconds()))
+        return JSONResponse(
+            status_code=429,
+            headers={"Retry-After": str(wait)},
+            content={"detail": {
+                "code": limit.code,
+                "message": LIMIT_MESSAGES[limit.code],
+                "limit": limit.limit,
+                "resets_at": limit.resets_at.isoformat(),
+                "retry_after_seconds": wait,
+            }},
+        )
+    except Exception:
+        logger.exception("Puzzle generation failed")
+        raise HTTPException(status_code=500, detail="Something went wrong while making the puzzle.")
 
-        if isinstance(result, dict) and "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Server error: {e}")
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {**result, "meta": meta}
 
 # ---------------------------------------------------------
 # Run with: uvicorn main:app --reload

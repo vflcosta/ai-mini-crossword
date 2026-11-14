@@ -3,12 +3,15 @@
  * The backend is faked, so these tests need no server and no AI.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import App from '../App';
-import { generateCrossword } from '../api';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import App, { limitNotice, timeUntil } from '../App';
+import { generateCrossword, LimitReachedError } from '../api';
 import type { BackendPayload } from '../types/api';
 
-vi.mock('../api', () => ({ generateCrossword: vi.fn() }));
+vi.mock('../api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api')>()),
+  generateCrossword: vi.fn(),
+}));
 const generateMock = vi.mocked(generateCrossword);
 
 // P L A N T      1 across: PLANT
@@ -44,7 +47,7 @@ const click = (index: number) => fireEvent.click(squares()[index]);
 
 async function startRandomPuzzle() {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: /random knowledge mix/i }));
+  fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
   await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
 }
 
@@ -61,10 +64,10 @@ describe('home screen', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: 'AI Mini Crossword' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate from Theme' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeEnabled();
   });
 
-  it('"Random Knowledge Mix" asks for a 5x5 puzzle with no theme and opens the game', async () => {
+  it('"Today\'s Knowledge Mix" asks for a 5x5 puzzle with no theme and opens the game', async () => {
     await startRandomPuzzle();
     expect(generateMock).toHaveBeenCalledWith(null, 5);
     expect(screen.getByText('0:00')).toBeInTheDocument();
@@ -84,20 +87,29 @@ describe('home screen', () => {
     let finish!: (p: BackendPayload) => void;
     generateMock.mockReturnValue(new Promise((resolve) => (finish = resolve)));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /random knowledge mix/i }));
+    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
     expect(await screen.findByRole('button', { name: 'Generating...' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeDisabled();
     finish(PUZZLE);
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
   });
 
-  it('tells the user and stays on the home screen when generation fails', async () => {
+  it('tells the user on the page (no pop-up) and stays on the home screen when generation fails', async () => {
     generateMock.mockRejectedValue(new Error('Backend error: 500'));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /random knowledge mix/i }));
-    await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Could not generate crossword.'));
+    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("We couldn't make that puzzle");
+    expect(window.alert).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'AI Mini Crossword' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeEnabled();
+  });
+
+  it('pressing Enter in the theme box generates the puzzle', async () => {
+    render(<App />);
+    const input = screen.getByPlaceholderText(/enter a theme/i);
+    fireEvent.change(input, { target: { value: 'jazz' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(generateMock).toHaveBeenCalledWith('jazz', 5));
   });
 
   it('tapping a theme chip like "Coffee" generates a Coffee puzzle', async () => {
@@ -108,14 +120,7 @@ describe('home screen', () => {
     expect(generateMock).toHaveBeenCalledWith('Coffee', 5);
   });
 
-  it('"Reset" after a theme chip keeps the same theme', async () => {
-    render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Space' }));
-    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
-    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
-    expect(generateMock).toHaveBeenLastCalledWith('Space', 5);
-  });
+
 });
 
 describe('clues', () => {
@@ -274,15 +279,172 @@ describe('finishing the puzzle', () => {
   it('"Back to Home" returns to the home screen', async () => {
     await startRandomPuzzle();
     fireEvent.click(screen.getByRole('button', { name: /back to home/i }));
-    expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeInTheDocument();
     expect(squares()).toHaveLength(0);
   });
 
-  it('"Reset" loads a fresh puzzle with an empty grid', async () => {
+  it('"Reset" starts the same puzzle again without asking for a new one', async () => {
     await startRandomPuzzle();
     type(SQUARE.P, 'P');
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
     fireEvent.click(screen.getByRole('button', { name: /reset/i }));
-    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(squares()[SQUARE.P]).toHaveValue(''));
+    expect(squares()[SQUARE.P]).toHaveValue('');
+    expect(screen.getByText('0:00')).toBeInTheDocument();
+    expect(screen.getByText('Select a clue')).toBeInTheDocument();
+    expect(generateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('the celebration says when the puzzle was solved without reveals', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    expect(await screen.findByText(/no reveals/i)).toBeInTheDocument();
+  });
+
+  it('the celebration counts how many answers were revealed', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    click(SQUARE.R_of_TREE);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    fillAll(SOLUTION);
+    expect(await screen.findByText('💡 2 answers revealed')).toBeInTheDocument();
+  });
+
+  it('revealing the same answer twice counts once', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    click(SQUARE.A);
+    fillAll(SOLUTION);
+    expect(await screen.findByText('💡 1 answer revealed')).toBeInTheDocument();
+  });
+});
+
+describe('daily limits', () => {
+  const RESETS = new Date('2026-11-21T00:00:00+01:00');
+  const playerLimit = new LimitReachedError({
+    code: 'player_limit',
+    message: "You've made all your new puzzles for today.",
+    limit: 10,
+    resets_at: RESETS.toISOString(),
+    retry_after_seconds: 3600,
+  });
+  const capacity = new LimitReachedError({
+    code: 'daily_capacity',
+    message: 'paused',
+    limit: 500,
+    resets_at: RESETS.toISOString(),
+    retry_after_seconds: 3600,
+  });
+
+  async function typeThemeAndGenerate(theme: string) {
+    fireEvent.change(screen.getByPlaceholderText(/enter a theme/i), { target: { value: theme } });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
+  }
+
+  it('explains the player limit kindly, keeps the typed theme, and offers today\'s puzzle', async () => {
+    generateMock.mockRejectedValueOnce(playerLimit);
+    render(<App />);
+    await typeThemeAndGenerate('jazz');
+    const note = await screen.findByRole('status');
+    expect(note).toHaveTextContent("That's all your new themes for today");
+    expect(note).toHaveTextContent("You've made 10 new puzzles today");
+    expect(note).toHaveTextContent(/New themes unlock in/);
+    expect(window.alert).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(/enter a theme/i)).toHaveValue('jazz');
+
+    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(generateMock).toHaveBeenLastCalledWith(null, 5);
+  });
+
+  it('explains when everyone together has used up today\'s new puzzles', async () => {
+    generateMock.mockRejectedValueOnce(capacity);
+    render(<App />);
+    await typeThemeAndGenerate('jazz');
+    expect(await screen.findByRole('status')).toHaveTextContent('Busy day for puzzles!');
+  });
+
+  it('the message can be dismissed and disappears on the next try', async () => {
+    generateMock.mockRejectedValueOnce(playerLimit);
+    render(<App />);
+    await typeThemeAndGenerate('jazz');
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss message' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('warns ahead of time when only a few new themes are left', async () => {
+    generateMock.mockResolvedValueOnce({
+      ...PUZZLE,
+      meta: { cached: false, free: false, new_puzzles_left: 2, resets_at: RESETS.toISOString() },
+    });
+    render(<App />);
+    await typeThemeAndGenerate('jazz');
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fireEvent.click(screen.getByRole('button', { name: /back to home/i }));
+    expect(screen.getByText('2 new themes left today')).toBeInTheDocument();
+  });
+
+  it('does not nag while plenty of new themes are left', async () => {
+    generateMock.mockResolvedValueOnce({
+      ...PUZZLE,
+      meta: { cached: false, free: false, new_puzzles_left: 8, resets_at: RESETS.toISOString() },
+    });
+    render(<App />);
+    await typeThemeAndGenerate('jazz');
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fireEvent.click(screen.getByRole('button', { name: /back to home/i }));
+    expect(screen.queryByText(/left today/)).not.toBeInTheDocument();
+  });
+
+  it('featured themes are labelled as free', () => {
+    render(<App />);
+    expect(screen.getByText(/featured themes are free/i)).toBeInTheDocument();
+  });
+});
+
+describe('slow first puzzle', () => {
+  it('after a few seconds of waiting, explains that the server is waking up', async () => {
+    vi.useFakeTimers();
+    try {
+      generateMock.mockReturnValue(new Promise(() => {}));
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+      expect(screen.queryByText(/waking up/i)).not.toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(7000);
+      });
+      expect(screen.getByText(/waking up the puzzle maker/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('message helpers', () => {
+  const now = new Date('2026-11-20T20:48:00+01:00');
+  it.each([
+    ['2026-11-21T00:00:00+01:00', 'in 3 h 12 min'],
+    ['2026-11-20T23:48:00+01:00', 'in 3 h'],
+    ['2026-11-20T21:13:00+01:00', 'in 25 min'],
+    ['2026-11-20T20:40:00+01:00', 'in 1 min'],
+  ])('time until %s is "%s"', (when, text) => {
+    expect(timeUntil(new Date(when), now)).toBe(text);
+  });
+
+  it('limit message names the limit and when it resets', () => {
+    const n = limitNotice(
+      new LimitReachedError({
+        code: 'player_limit',
+        message: '',
+        limit: 10,
+        resets_at: '2026-11-21T00:00:00+01:00',
+        retry_after_seconds: 1,
+      }),
+      now
+    );
+    expect(n.body).toContain("You've made 10 new puzzles today. New themes unlock in 3 h 12 min.");
   });
 });
