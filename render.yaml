@@ -1,8 +1,8 @@
 # Hosting setup for Render (https://render.com).
 # In Render: New > Blueprint > pick this repository. Render reads this file and
-# creates both services. The only thing it asks you for is OPENAI_API_KEY.
+# creates both services. The only thing it asks you for is ANTHROPIC_API_KEY.
 services:
-  # ---- the backend (generates puzzles, talks to OpenAI) ----
+  # ---- the backend (generates puzzles, talks to Claude) ----
   - type: web
     name: ai-mini-crossword-api
     runtime: python
@@ -14,10 +14,12 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
-      - key: OPENAI_API_KEY
+      - key: ANTHROPIC_API_KEY
         sync: false     # secret: you type it into Render, it is never stored in git
-      - key: OPENAI_MODEL
-        value: gpt-5.6-terra
+      - key: AI_MODEL
+        value: claude-haiku-5-5
+      - key: AI_EFFORT
+        value: low
       # which websites may call the backend: this site's onrender.com address
       - key: ALLOWED_ORIGIN_REGEX
         value: https://ai-mini-crossword(-[a-z0-9]+)?\.onrender\.com

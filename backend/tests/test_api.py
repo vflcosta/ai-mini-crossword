@@ -16,8 +16,8 @@ def test_health_check():
     assert res.json()["status"] == "ok"
 
 
-def test_generate_returns_a_grid_and_numbered_clues(fake_openai):
-    fake_openai.reply_words(**ANIMALS)
+def test_generate_returns_a_grid_and_numbered_clues(fake_ai):
+    fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={"theme": "animals", "size": 5})
     assert res.status_code == 200
     body = res.json()
@@ -32,30 +32,30 @@ def test_generate_returns_a_grid_and_numbered_clues(fake_openai):
     assert answers and answers <= {"TIGER", "OTTER", "GOAT", "RAT"}
 
 
-def test_theme_reaches_the_ai(fake_openai):
-    fake_openai.reply_words(**ANIMALS)
+def test_theme_reaches_the_ai(fake_ai):
+    fake_ai.reply_words(**ANIMALS)
     client.post("/generate-crossword", json={"theme": "dinosaurs", "size": 7})
-    assert '"dinosaurs"' in fake_openai.prompts[0]
+    assert '"dinosaurs"' in fake_ai.prompts[0]
 
 
-def test_random_puzzle_needs_no_theme(fake_openai):
-    fake_openai.reply_words(**ANIMALS)
+def test_random_puzzle_needs_no_theme(fake_ai):
+    fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={"theme": None})
     assert res.status_code == 200
     assert len(res.json()["grid"]) == 5  # default size: the classic 5x5 mini
-    assert "Mixed everyday topics" in fake_openai.prompts[0]
+    assert "Mixed everyday topics" in fake_ai.prompts[0]
 
 
-def test_empty_body_uses_defaults(fake_openai):
-    fake_openai.reply_words(**ANIMALS)
+def test_empty_body_uses_defaults(fake_ai):
+    fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={})
     assert res.status_code == 200
     assert len(res.json()["grid"]) == 5
 
 
-def test_still_returns_a_puzzle_when_the_ai_is_down(fake_openai):
-    fake_openai.reply_error(ConnectionError("no internet"))
-    fake_openai.reply_error(ConnectionError("no internet"))
+def test_still_returns_a_puzzle_when_the_ai_is_down(fake_ai):
+    fake_ai.reply_error(ConnectionError("no internet"))
+    fake_ai.reply_error(ConnectionError("no internet"))
     res = client.post("/generate-crossword", json={"theme": "animals", "size": 7})
     assert res.status_code == 200
     assert res.json()["clues"]["across"]
@@ -141,8 +141,8 @@ def test_too_large_size_is_rejected(size):
 
 
 @pytest.mark.parametrize("size", [3, 5, 10])
-def test_smallest_and_largest_allowed_sizes_work(fake_openai, size):
-    fake_openai.reply_words(**ANIMALS)
+def test_smallest_and_largest_allowed_sizes_work(fake_ai, size):
+    fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={"theme": "x", "size": size})
     assert res.status_code == 200
     assert len(res.json()["grid"]) == size

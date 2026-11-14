@@ -6,19 +6,32 @@ import re
 import zlib
 from typing import Optional, List, Dict, Tuple
 from dotenv import load_dotenv
-import openai
+import anthropic
 
 from utils.dense_fill import MAX_DENSE_SIZE, fill_dense
 
-# Load OpenAI API key
+# Load ANTHROPIC_API_KEY (and the other settings) from backend/.env
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Which OpenAI model writes the words and clues. gpt-3.5-turbo (used before)
-# was shut down by OpenAI on 23 Oct 2026; gpt-5.6-terra is its official
-# replacement. Override with the OPENAI_MODEL environment variable.
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-terra")
+# Which Claude model writes the words and clues. Override with AI_MODEL.
+AI_MODEL = os.getenv("AI_MODEL", "claude-haiku-5-5")
+# How hard the model thinks before answering: low, medium or high.
+# "low" is the cheapest and fastest, and enough for words and short clues.
+AI_EFFORT = os.getenv("AI_EFFORT", "low")
+# Upper limit on each reply, thinking included (a puzzle needs far fewer).
+AI_MAX_TOKENS = 4000
 AI_TIMEOUT_SECONDS = 30
+
+_client_instance = None
+
+
+def _client():
+    """The Claude client, created on first use (reads ANTHROPIC_API_KEY)."""
+    global _client_instance
+    if _client_instance is None:
+        _client_instance = anthropic.Anthropic(timeout=AI_TIMEOUT_SECONDS, max_retries=1)
+    return _client_instance
+
 
 logger = logging.getLogger("crossword")
 
@@ -140,13 +153,17 @@ def _fallback() -> dict:
 
 
 def _ask_ai(prompt: str) -> dict:
-    """Send one prompt to the AI and return the JSON object in its reply."""
-    resp = openai.chat.completions.create(
-        model=OPENAI_MODEL,
+    """Send one prompt to Claude and return the JSON object in its reply."""
+    resp = _client().messages.create(
+        model=AI_MODEL,
+        max_tokens=AI_MAX_TOKENS,
         messages=[{"role": "user", "content": prompt}],
-        timeout=AI_TIMEOUT_SECONDS,
+        output_config={"effort": AI_EFFORT},
     )
-    content = (resp.choices[0].message.content or "").strip()
+    # the reply can contain thinking blocks; only the text blocks hold the answer
+    content = "".join(
+        block.text for block in resp.content if getattr(block, "type", None) == "text"
+    ).strip()
     m = re.search(r"\{.*\}", content, re.DOTALL)
     if m:
         content = m.group(0)

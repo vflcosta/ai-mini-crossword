@@ -60,43 +60,53 @@ def test_missing_sections_and_missing_answers_do_not_crash():
 
 # ---------- talking to the AI ----------
 
-def test_clean_ai_reply_is_used(fake_openai):
-    fake_openai.reply_words(across=[("CAT", "Feline pet")], down=[("DOG", "Loyal pet")])
+def test_clean_ai_reply_is_used(fake_ai):
+    fake_ai.reply_words(across=[("CAT", "Feline pet")], down=[("DOG", "Loyal pet")])
     result = generate_clues("animals", 7)
     assert result == {"across": [{"clue": "Feline pet", "answer": "CAT"}],
                       "down": [{"clue": "Loyal pet", "answer": "DOG"}]}
-    assert len(fake_openai.calls) == 1
+    assert len(fake_ai.calls) == 1
 
 
-def test_ai_reply_wrapped_in_markdown_or_chatter_is_still_understood(fake_openai):
+def test_ai_reply_wrapped_in_markdown_or_chatter_is_still_understood(fake_ai):
     body = json.dumps({"across": [{"clue": "Feline pet", "answer": "CAT"}], "down": []})
-    fake_openai.reply_text(f"Sure! Here is your crossword:\n```json\n{body}\n```\nEnjoy!")
+    fake_ai.reply_text(f"Sure! Here is your crossword:\n```json\n{body}\n```\nEnjoy!")
     assert generate_clues("animals", 7)["across"] == [{"clue": "Feline pet", "answer": "CAT"}]
 
 
-def test_garbage_reply_is_retried_once_then_falls_back(fake_openai):
-    fake_openai.reply_text("I'm sorry, I can't do that.")
-    fake_openai.reply_text("{ this is not json")
+def test_garbage_reply_is_retried_once_then_falls_back(fake_ai):
+    fake_ai.reply_text("I'm sorry, I can't do that.")
+    fake_ai.reply_text("{ this is not json")
     assert generate_clues("animals", 7) == _fallback()
-    assert len(fake_openai.calls) == 2
+    assert len(fake_ai.calls) == 2
 
 
-def test_second_attempt_is_used_when_first_fails(fake_openai):
-    fake_openai.reply_error(TimeoutError("AI timed out"))
-    fake_openai.reply_words(across=[("CAT", "Feline pet")])
+def test_second_attempt_is_used_when_first_fails(fake_ai):
+    fake_ai.reply_error(TimeoutError("AI timed out"))
+    fake_ai.reply_words(across=[("CAT", "Feline pet")])
     assert generate_clues("animals", 7)["across"][0]["answer"] == "CAT"
-    assert len(fake_openai.calls) == 2
+    assert len(fake_ai.calls) == 2
 
 
-def test_ai_outage_falls_back_to_built_in_words(fake_openai):
-    fake_openai.reply_error(ConnectionError("no internet"))
-    fake_openai.reply_error(ConnectionError("no internet"))
+def test_ai_outage_falls_back_to_built_in_words(fake_ai):
+    fake_ai.reply_error(ConnectionError("no internet"))
+    fake_ai.reply_error(ConnectionError("no internet"))
     assert generate_clues("animals", 7) == _fallback()
 
 
-def test_reply_with_only_unusable_words_falls_back(fake_openai):
+def test_thinking_blocks_in_the_reply_are_ignored(fake_ai):
+    from types import SimpleNamespace
+    body = json.dumps({"across": [{"clue": "Feline pet", "answer": "CAT"}], "down": []})
+    fake_ai.messages.create = lambda **kw: SimpleNamespace(content=[
+        SimpleNamespace(type="thinking", thinking='{"across": [{"clue": "x", "answer": "NOPE"}]}'),
+        SimpleNamespace(type="text", text=body),
+    ])
+    assert generate_clues("animals", 7)["across"] == [{"clue": "Feline pet", "answer": "CAT"}]
+
+
+def test_reply_with_only_unusable_words_falls_back(fake_ai):
     for _ in range(2):
-        fake_openai.reply_words(across=[("AT", "Too short"), ("HIPPOPOTAMUS", "Too long")])
+        fake_ai.reply_words(across=[("AT", "Too short"), ("HIPPOPOTAMUS", "Too long")])
     assert generate_clues("animals", 7) == _fallback()
 
 
@@ -107,16 +117,16 @@ def test_built_in_fallback_words_are_themselves_valid():
 
 # ---------- what we ask the AI ----------
 
-def test_prompt_mentions_theme_and_grid_size(fake_openai):
-    fake_openai.reply_words(across=[("CAT", "Feline pet")])
+def test_prompt_mentions_theme_and_grid_size(fake_ai):
+    fake_ai.reply_words(across=[("CAT", "Feline pet")])
     generate_clues("ancient egypt", 6, num=12)
-    prompt = fake_openai.last_prompt
+    prompt = fake_ai.last_prompt
     assert '"ancient egypt"' in prompt
     assert "6x6" in prompt
     assert "at least 12" in prompt
 
 
-def test_prompt_without_theme_asks_for_a_mix(fake_openai):
-    fake_openai.reply_words(across=[("CAT", "Feline pet")])
+def test_prompt_without_theme_asks_for_a_mix(fake_ai):
+    fake_ai.reply_words(across=[("CAT", "Feline pet")])
     generate_clues(None, 7)
-    assert "Mixed everyday topics" in fake_openai.last_prompt
+    assert "Mixed everyday topics" in fake_ai.last_prompt

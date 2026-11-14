@@ -1,6 +1,6 @@
 # AI Crossword – Intelligent Puzzle Generator
 
-**AI Crossword** is an intelligent crossword puzzle generator built with **FastAPI** and **OpenAI GPT**.
+**AI Crossword** is an intelligent crossword puzzle generator built with **FastAPI** and **Claude**.
 It dynamically creates crossword grids and clues around any given **theme**, blending language, creativity, and logic.
 
 This backend powers the upcoming **AI Crossword Web App**, which brings interactive, AI-driven puzzles to life.
@@ -8,7 +8,7 @@ This backend powers the upcoming **AI Crossword Web App**, which brings interact
 
 ## Highlights
 
-* AI-generated puzzles – every crossword is unique, created from scratch by GPT
+* AI-generated puzzles – every crossword is unique, created from scratch by Claude
 * Theme-based generation – input any topic: mythology, space, cinema, animals, etc.
 * FastAPI-powered API – lightweight, fast, and ready for frontend integration
 * Clean architecture – modular code structure for easy expansion
@@ -102,7 +102,7 @@ Generates a crossword puzzle based on a given theme and grid size.
 | ----------- | ------------------ |
 | Language    | Python 3.10+       |
 | Framework   | FastAPI            |
-| AI Model    | OpenAI GPT         |
+| AI Model    | Claude Haiku 5.5   |
 | Server      | Uvicorn            |
 | Environment | python-dotenv      |
 | API Docs    | Swagger UI (/docs) |
@@ -134,7 +134,7 @@ Generates a crossword puzzle based on a given theme and grid size.
 4. **Create a `.env` File**
 
    ```
-   OPENAI_API_KEY=your_api_key_here
+   ANTHROPIC_API_KEY=your_api_key_here
    ```
 
 5. **Run the Server**
@@ -156,7 +156,7 @@ ai-crossword/
 │   ├── routes/
 │   │   └── crossword.py
 │   ├── services/
-│   │   └── openai_service.py
+│   │   └── ai_service.py
 │   ├── utils/
 │   │   └── grid_builder.py
 │   ├── tests/
@@ -218,8 +218,9 @@ Settings (environment variables on the backend):
 
 | Variable | What it does | Default |
 | -------- | ------------ | ------- |
-| `OPENAI_API_KEY` | Your OpenAI key (required) | none |
-| `OPENAI_MODEL` | Which OpenAI model writes words and clues | `gpt-5.6-terra` |
+| `ANTHROPIC_API_KEY` | Your Claude API key (required) | none |
+| `AI_MODEL` | Which Claude model writes words and clues | `claude-haiku-5-5` |
+| `AI_EFFORT` | How much the model thinks: `low`, `medium` or `high` | `low` |
 | `ALLOWED_ORIGINS` | Website addresses allowed to call the backend, comma separated | local dev only |
 | `ALLOWED_ORIGIN_REGEX` | Same, as a pattern | none |
 
@@ -236,7 +237,7 @@ a free static site for the website.
 
 1. Create an account at [render.com](https://render.com) and connect GitHub.
 2. Choose **New > Blueprint** and pick this repository.
-3. When asked, paste your `OPENAI_API_KEY`. Click **Apply**.
+3. When asked, paste your `ANTHROPIC_API_KEY`. Click **Apply**.
 4. Open the address of the `ai-mini-crossword` site when both services are green.
 
 Every push to `main` then deploys automatically.

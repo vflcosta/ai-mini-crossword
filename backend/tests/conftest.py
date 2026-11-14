@@ -1,7 +1,7 @@
 """
 Shared test setup.
 
-The tests never talk to the real OpenAI API: every test gets a fake client,
+The tests never talk to the real Claude API: every test gets a fake client,
 so the suite is free, fast, and works without an API key or internet.
 """
 import json
@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 # Must be set before the app is imported, so a real key is never picked up.
-os.environ["OPENAI_API_KEY"] = "test-key-not-real"
+os.environ["ANTHROPIC_API_KEY"] = "test-key-not-real"
 
 from utils import crossword_gen  # noqa: E402
 
@@ -29,16 +29,14 @@ def known_bug(reason: str):
     return pytest.mark.xfail(strict=True, reason=f"KNOWN BUG: {reason}")
 
 
-class FakeOpenAI:
-    """Stands in for the `openai` module used by crossword_gen."""
+class FakeAI:
+    """Stands in for the Claude client used by crossword_gen."""
 
     def __init__(self):
         self.replies = []      # queue of str (reply text) or Exception (to raise)
         self.calls = []        # kwargs of every create() call
         self.fill_clue_writer = None  # see write_fill_clues()
-        self.chat = SimpleNamespace(
-            completions=SimpleNamespace(create=self._create)
-        )
+        self.messages = SimpleNamespace(create=self._create)
 
     def _create(self, **kwargs):
         self.calls.append(kwargs)
@@ -47,7 +45,7 @@ class FakeOpenAI:
             answers = self.fill_answers_in(prompt)
             return self._message(json.dumps({a: self.fill_clue_writer(a) for a in answers}))
         if not self.replies:
-            raise RuntimeError("FakeOpenAI: no reply queued for this call")
+            raise RuntimeError("FakeAI: no reply queued for this call")
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -55,9 +53,11 @@ class FakeOpenAI:
 
     @staticmethod
     def _message(text: str):
-        return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=text))]
-        )
+        # shaped like a real Claude reply: a thinking block, then the text
+        return SimpleNamespace(content=[
+            SimpleNamespace(type="thinking", thinking="(model thinking)"),
+            SimpleNamespace(type="text", text=text),
+        ])
 
     @staticmethod
     def fill_answers_in(prompt: str):
@@ -96,7 +96,7 @@ class FakeOpenAI:
 
 
 @pytest.fixture(autouse=True)
-def fake_openai(monkeypatch):
-    fake = FakeOpenAI()
-    monkeypatch.setattr(crossword_gen, "openai", fake)
+def fake_ai(monkeypatch):
+    fake = FakeAI()
+    monkeypatch.setattr(crossword_gen, "_client", lambda: fake)
     return fake

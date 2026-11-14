@@ -139,9 +139,9 @@ def all_clues(puzzle):
     return [c for d in ("across", "down") for c in puzzle["clues"][d]]
 
 
-def test_full_puzzle_is_dense_and_every_word_has_its_own_clue(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
-    fake_openai.write_fill_clues(lambda answer: f"Fill clue #{len(answer)}")
+def test_full_puzzle_is_dense_and_every_word_has_its_own_clue(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
+    fake_ai.write_fill_clues(lambda answer: f"Fill clue #{len(answer)}")
     puzzle = generate_crossword("ocean", 5)
 
     assert sum(row.count("#") for row in puzzle["grid"]) <= 6
@@ -159,9 +159,9 @@ def test_full_puzzle_is_dense_and_every_word_has_its_own_clue(fake_openai):
     assert themed >= 2
 
 
-def test_full_puzzle_numbering_is_standard(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
-    fake_openai.write_fill_clues()
+def test_full_puzzle_numbering_is_standard(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
+    fake_ai.write_fill_clues()
     puzzle = generate_crossword("ocean", 5)
     from .helpers import expected_numbers
     numbers = expected_numbers(puzzle["grid"])
@@ -173,66 +173,70 @@ def test_full_puzzle_numbering_is_standard(fake_openai):
             assert clue["number"] == numbers[starts[(d, clue["answer"])]]
 
 
-def test_second_ai_call_asks_for_clues_only_for_the_dictionary_words(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
-    fake_openai.write_fill_clues()
+def test_second_ai_call_asks_for_clues_only_for_the_dictionary_words(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
+    fake_ai.write_fill_clues()
     puzzle = generate_crossword("ocean", 5)
-    assert len(fake_openai.calls) == 2
-    asked = set(fake_openai.fill_answers_in(fake_openai.prompts[1]))
+    assert len(fake_ai.calls) == 2
+    asked = set(fake_ai.fill_answers_in(fake_ai.prompts[1]))
     ai_words = {a for a, _ in OCEAN}
     assert asked == {c["answer"] for c in all_clues(puzzle)} - ai_words
-    assert '"ocean"' in fake_openai.prompts[1]
+    assert '"ocean"' in fake_ai.prompts[1]
 
 
-def test_a_clue_that_gives_away_its_answer_is_rejected_and_asked_again(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
+def test_a_clue_that_gives_away_its_answer_is_rejected_and_asked_again(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
     attempts = {}
 
     def writer(answer):
         attempts[answer] = attempts.get(answer, 0) + 1
         return f"The word {answer.lower()}" if attempts[answer] == 1 else "A proper clue"
 
-    fake_openai.write_fill_clues(writer)
+    fake_ai.write_fill_clues(writer)
     puzzle = generate_crossword("ocean", 5)
-    assert len(fake_openai.calls) == 3  # words, clues, clues again
+    assert len(fake_ai.calls) == 3  # words, clues, clues again
     for clue in all_clues(puzzle):
         assert clue["answer"].lower() not in clue["clue"].lower()
 
 
-def test_falls_back_to_the_simple_layout_when_fill_clues_cannot_be_written(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
-    fake_openai.reply_error(TimeoutError("AI timed out"))
-    fake_openai.reply_text("not json")
+def test_falls_back_to_the_simple_layout_when_fill_clues_cannot_be_written(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
+    fake_ai.reply_error(TimeoutError("AI timed out"))
+    fake_ai.reply_text("not json")
     puzzle = generate_crossword("ocean", 5)
     ai_words = {a for a, _ in OCEAN}
     assert all_clues(puzzle)
     assert {c["answer"] for c in all_clues(puzzle)} <= ai_words  # only the AI's own words
 
 
-def test_ai_outage_gives_the_built_in_puzzle_without_extra_ai_calls(fake_openai):
-    fake_openai.reply_error(ConnectionError("no internet"))
-    fake_openai.reply_error(ConnectionError("no internet"))
+def test_ai_outage_gives_the_built_in_puzzle_without_extra_ai_calls(fake_ai):
+    fake_ai.reply_error(ConnectionError("no internet"))
+    fake_ai.reply_error(ConnectionError("no internet"))
     puzzle = generate_crossword("ocean", 5)
     built_in = {w["answer"] for d in ("across", "down") for w in _fallback()[d]}
     assert {c["answer"] for c in all_clues(puzzle)} <= built_in
-    assert len(fake_openai.calls) == 2
+    assert len(fake_ai.calls) == 2
 
 
-def test_grids_larger_than_5x5_use_the_simple_layout(fake_openai):
-    fake_openai.reply_words(across=OCEAN)
+def test_grids_larger_than_5x5_use_the_simple_layout(fake_ai):
+    fake_ai.reply_words(across=OCEAN)
     puzzle = generate_crossword("ocean", 7)
     assert len(puzzle["grid"]) == 7
-    assert len(fake_openai.calls) == 1
+    assert len(fake_ai.calls) == 1
     assert {c["answer"] for c in all_clues(puzzle)} <= {a for a, _ in OCEAN}
 
 
-def test_ai_is_asked_with_the_configured_model(fake_openai, monkeypatch):
-    monkeypatch.setattr(crossword_gen, "OPENAI_MODEL", "some-new-model")
-    fake_openai.reply_words(across=OCEAN)
-    fake_openai.write_fill_clues()
+def test_ai_is_asked_with_the_configured_model_and_effort(fake_ai, monkeypatch):
+    monkeypatch.setattr(crossword_gen, "AI_MODEL", "some-new-model")
+    monkeypatch.setattr(crossword_gen, "AI_EFFORT", "medium")
+    fake_ai.reply_words(across=OCEAN)
+    fake_ai.write_fill_clues()
     generate_crossword("ocean", 5)
-    assert {call["model"] for call in fake_openai.calls} == {"some-new-model"}
+    assert {call["model"] for call in fake_ai.calls} == {"some-new-model"}
+    assert {call["output_config"]["effort"] for call in fake_ai.calls} == {"medium"}
+    assert all(call["max_tokens"] >= 2000 for call in fake_ai.calls)
 
 
-def test_default_model_is_not_the_retired_one():
-    assert "gpt-3.5" not in crossword_gen.OPENAI_MODEL
+def test_defaults_are_claude_haiku_at_low_effort():
+    assert crossword_gen.AI_MODEL == "claude-haiku-5-5"
+    assert crossword_gen.AI_EFFORT == "low"
