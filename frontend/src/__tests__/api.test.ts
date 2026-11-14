@@ -30,9 +30,24 @@ describe('generateCrossword', () => {
     expect(result).toEqual(PAYLOAD);
   });
 
-  it('defaults to a 7x7 grid', async () => {
+  it('defaults to the classic 5x5 mini', async () => {
     await generateCrossword('space');
-    expect(sentBody().size).toBe(7);
+    expect(sentBody().size).toBe(5);
+  });
+
+  it('talks to the local backend when no address is configured', async () => {
+    await generateCrossword('space');
+    expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:8000/generate-crossword');
+  });
+
+  it('talks to the live backend when VITE_API_URL is set', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://my-api.example.com/');
+    vi.resetModules();
+    const live = await import('../api');
+    await live.generateCrossword('space');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://my-api.example.com/generate-crossword');
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it.each([undefined, null, '', '   '])('sends theme %j as "no theme"', async (theme) => {

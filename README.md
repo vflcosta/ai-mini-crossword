@@ -203,6 +203,49 @@ When a bug is fixed, its test starts passing and the run fails with a message
 asking you to remove the marker. From then on the test protects the fix.
 
 
+## How a puzzle is built
+
+1. The AI is asked for about 30 words and clues on the theme.
+2. A 5x5 newspaper-style grid is filled: themed words go in wherever they fit
+   (usually about 3 of the 10 answers) and common English words from
+   `backend/data/words.txt` fill the rest, so every letter belongs to an across
+   word and a down word.
+3. The AI writes clues for the non-themed words.
+4. If step 2 or 3 is not possible (AI offline, or a grid larger than 5x5), a
+   simpler layout is used that contains only the AI's words crossing each other.
+
+Settings (environment variables on the backend):
+
+| Variable | What it does | Default |
+| -------- | ------------ | ------- |
+| `OPENAI_API_KEY` | Your OpenAI key (required) | none |
+| `OPENAI_MODEL` | Which OpenAI model writes words and clues | `gpt-5.6-terra` |
+| `ALLOWED_ORIGINS` | Website addresses allowed to call the backend, comma separated | local dev only |
+| `ALLOWED_ORIGIN_REGEX` | Same, as a pattern | none |
+
+The website reads the backend's address from `VITE_API_URL` when it is built
+(default: `http://127.0.0.1:8000`).
+
+The word list comes from SCOWL (see `backend/data/WORDS_LICENSE.txt`).
+
+
+## Going live (Render)
+
+`render.yaml` describes the whole setup: a free web service for the backend and
+a free static site for the website.
+
+1. Create an account at [render.com](https://render.com) and connect GitHub.
+2. Choose **New > Blueprint** and pick this repository.
+3. When asked, paste your `OPENAI_API_KEY`. Click **Apply**.
+4. Open the address of the `ai-mini-crossword` site when both services are green.
+
+Every push to `main` then deploys automatically.
+
+On the free plan the backend sleeps after 15 minutes without visitors, and the
+next puzzle takes about a minute while it wakes up. Changing `plan: free` to
+`plan: starter` in `render.yaml` keeps it awake.
+
+
 ## Next Steps
 
 * Integrate frontend (React or Next.js)

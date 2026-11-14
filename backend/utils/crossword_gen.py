@@ -1,14 +1,26 @@
 import os
 import json
+import logging
 import random
 import re
+import zlib
 from typing import Optional, List, Dict, Tuple
 from dotenv import load_dotenv
 import openai
 
+from utils.dense_fill import MAX_DENSE_SIZE, fill_dense
+
 # Load OpenAI API key
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Which OpenAI model writes the words and clues. gpt-3.5-turbo (used before)
+# was shut down by OpenAI on 23 Oct 2026; gpt-5.6-terra is its official
+# replacement. Override with the OPENAI_MODEL environment variable.
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-terra")
+AI_TIMEOUT_SECONDS = 30
+
+logger = logging.getLogger("crossword")
 
 ALPHABETIC = re.compile(r"^[A-Z]+$")
 
@@ -127,29 +139,143 @@ def _fallback() -> dict:
     }
 
 
+def _ask_ai(prompt: str) -> dict:
+    """Send one prompt to the AI and return the JSON object in its reply."""
+    resp = openai.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    content = (resp.choices[0].message.content or "").strip()
+    m = re.search(r"\{.*\}", content, re.DOTALL)
+    if m:
+        content = m.group(0)
+    data = json.loads(content)
+    if not isinstance(data, dict):
+        raise ValueError("AI reply is not a JSON object")
+    return data
+
+
 def generate_clues(theme: Optional[str], size: int, num: int = 16) -> dict:
     prompt = _build_prompt(theme, num, size)
-    for _ in range(2):
+    for attempt in range(2):
         try:
-            resp = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.4,
-            )
-            content = resp.choices[0].message.content.strip()
-            m = re.search(r"\{.*\}", content, re.DOTALL)
-            if m:
-                content = m.group(0)
-            data = json.loads(content)
-            clean = _sanitize_clues(data, size)
+            clean = _sanitize_clues(_ask_ai(prompt), size)
             if clean["across"] or clean["down"]:
                 return clean
-        except Exception:
+            logger.warning("AI reply had no usable words (attempt %d)", attempt + 1)
+        except Exception as exc:
+            logger.warning("AI word request failed (attempt %d): %r", attempt + 1, exc)
             continue
+    logger.error("AI unavailable: using the built-in fallback words")
     return _fallback()
 
 
-# ---------- placement engine ----------
+# ---------- clues for the dictionary words in a dense grid ----------
+
+FILL_CLUES_MARKER = "ANSWERS:"
+
+
+def _build_fill_prompt(answers: List[str], theme: Optional[str]) -> str:
+    theme_line = (
+        f'The puzzle theme is "{theme}". Relate a clue to the theme only when it fits naturally.'
+        if theme else "The puzzle has no special theme."
+    )
+    example = ", ".join(f'"{a}": "clue"' for a in answers[:2])
+    return f"""
+Return ONLY valid JSON.
+
+You are an expert crossword constructor. Write one clue for each answer below.
+{theme_line}
+
+{FILL_CLUES_MARKER} {", ".join(answers)}
+
+RULES:
+- Each clue clearly defines its answer and is at most 8 words.
+- Never use the answer word itself (or a form of it) inside its clue.
+- Simple, friendly language. No offensive content.
+
+FORMAT (one entry per answer, same spelling as given):
+{{{example}}}
+"""
+
+
+def _usable_fill_clue(answer: str, clue) -> bool:
+    if not isinstance(clue, str):
+        return False
+    text = clue.strip()
+    if not text or text.lower() in {"clue", "(clue)", "n/a", "none"} or len(text) > 120:
+        return False
+    return answer.lower() not in re.sub(r"[^a-z]", "", text.lower())
+
+
+def generate_fill_clues(answers: List[str], theme: Optional[str]) -> Optional[Dict[str, str]]:
+    """Ask the AI for a clue for every answer. None if it cannot provide them all."""
+    clues: Dict[str, str] = {}
+    for attempt in range(2):
+        missing = [a for a in answers if a not in clues]
+        if not missing:
+            break
+        try:
+            data = _ask_ai(_build_fill_prompt(missing, theme))
+        except Exception as exc:
+            logger.warning("AI clue request failed (attempt %d): %r", attempt + 1, exc)
+            continue
+        for key, clue in data.items():
+            answer = re.sub(r"[^A-Z]", "", str(key).upper())
+            if answer in missing and _usable_fill_clue(answer, clue):
+                clues[answer] = clue.strip()
+    if any(a not in clues for a in answers):
+        return None
+    return clues
+
+
+def _numbered_clues(entries: List[Dict]) -> Dict[str, List[Dict]]:
+    """Standard numbering: left to right, top to bottom; an across and a down
+    word that start in the same square share one number."""
+    starts = sorted({(e["row"], e["col"]) for e in entries})
+    number_of = {cell: i + 1 for i, cell in enumerate(starts)}
+    clues: Dict[str, List[Dict]] = {"across": [], "down": []}
+    for e in sorted(entries, key=lambda e: (e["row"], e["col"])):
+        clues[e["dir"]].append({
+            "number": number_of[(e["row"], e["col"])],
+            "clue": e["clue"],
+            "answer": e["answer"],
+        })
+    return clues
+
+
+def build_dense_crossword(words: List[Dict[str, str]], theme: Optional[str], size: int):
+    """
+    A newspaper-style mini: a (nearly) full grid where every letter is part of
+    an across word and a down word. Uses the AI's themed words where they fit
+    and common dictionary words elsewhere, then asks the AI to clue the
+    dictionary words. Returns None if that is not possible.
+    """
+    if size > MAX_DENSE_SIZE:
+        return None
+    clue_for = {}
+    for w in words:
+        clue_for.setdefault(w["answer"], w["clue"])
+    seed = zlib.crc32(" ".join(sorted(clue_for)).encode())
+    filled = fill_dense(list(clue_for), size, seed=seed)
+    if filled is None:
+        return None
+    grid, entries = filled
+
+    need = [e["answer"] for e in entries if e["answer"] not in clue_for]
+    if need:
+        extra = generate_fill_clues(need, theme)
+        if extra is None:
+            logger.warning("Could not get clues for the fill words; using the simple layout")
+            return None
+        clue_for.update(extra)
+    for e in entries:
+        e["clue"] = clue_for[e["answer"]]
+    return grid, _numbered_clues(entries)
+
+
+# ---------- simple layout (used when a dense grid is not possible) ----------
 #
 # Rules that make the result a real crossword:
 #   * every word after the first must cross a word that is already there
@@ -282,30 +408,26 @@ def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
 
     grid = [[cell or "#" for cell in row] for row in best.letters]
 
-    # standard numbering: left to right, top to bottom; an across and a down
-    # word that start in the same square share one number
-    starts = sorted({(p["row"], p["col"]) for p in best.placed})
-    number_of = {cell: i + 1 for i, cell in enumerate(starts)}
-
-    clues: Dict[str, List[Dict]] = {"across": [], "down": []}
-    for p in sorted(best.placed, key=lambda p: (p["row"], p["col"])):
-        clues[p["dir"]].append({
-            "number": number_of[(p["row"], p["col"])],
-            "clue": p["clue"],
-            "answer": p["answer"],
-        })
-    return grid, clues
+    return grid, _numbered_clues(best.placed)
 
 
 # ---------- public entrypoint ----------
 
-def generate_crossword(theme: Optional[str] = None, size: int = 7):
-    raw = generate_clues(theme, size, num=18)
-    # pool everything; placement will decide orientation
+def generate_crossword(theme: Optional[str] = None, size: int = 5):
+    # ask for plenty of themed words: the more there are, the more fit the grid
+    raw = generate_clues(theme, size, num=30)
     words_pool = raw["across"] + raw["down"]
     if not words_pool:
         return {"error": "Could not generate clues."}
 
+    # 1) newspaper-style dense grid (needs the AI for the extra clues)
+    if raw != _fallback():
+        dense = build_dense_crossword(words_pool, theme, size)
+        if dense is not None:
+            grid, final_clues = dense
+            return {"grid": grid, "clues": final_clues}
+
+    # 2) simple layout: only the AI's (or the built-in) words, crossing each other
     grid, final_clues = build_crossword_from_words(words_pool, size=size)
     return {
         "grid": grid,

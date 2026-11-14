@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword } from "./api";
+import { GRID_SIZE } from "./config";
 import { Crossword, Clue } from "./types/crossword";
 
 export default function App() {
@@ -77,7 +78,7 @@ export default function App() {
     const label = wanted || "Random Knowledge Mix";
     try {
       setLoading(true);
-      const payload = await generateCrossword(wanted || null, 7);
+      const payload = await generateCrossword(wanted || null, GRID_SIZE);
       const cw = backendToCrossword(payload, label);
       startGame(cw, label);
     } catch (err) {

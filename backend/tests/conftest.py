@@ -35,20 +35,35 @@ class FakeOpenAI:
     def __init__(self):
         self.replies = []      # queue of str (reply text) or Exception (to raise)
         self.calls = []        # kwargs of every create() call
+        self.fill_clue_writer = None  # see write_fill_clues()
         self.chat = SimpleNamespace(
             completions=SimpleNamespace(create=self._create)
         )
 
     def _create(self, **kwargs):
         self.calls.append(kwargs)
+        prompt = kwargs["messages"][0]["content"]
+        if self.fill_clue_writer and crossword_gen.FILL_CLUES_MARKER in prompt:
+            answers = self.fill_answers_in(prompt)
+            return self._message(json.dumps({a: self.fill_clue_writer(a) for a in answers}))
         if not self.replies:
             raise RuntimeError("FakeOpenAI: no reply queued for this call")
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
+        return self._message(reply)
+
+    @staticmethod
+    def _message(text: str):
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=reply))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content=text))]
         )
+
+    @staticmethod
+    def fill_answers_in(prompt: str):
+        """The answers a "write clues for these words" prompt asks about."""
+        line = next(l for l in prompt.splitlines() if l.startswith(crossword_gen.FILL_CLUES_MARKER))
+        return [a.strip() for a in line[len(crossword_gen.FILL_CLUES_MARKER):].split(",")]
 
     # helpers -------------------------------------------------------------
     def reply_text(self, text: str):
@@ -61,12 +76,23 @@ class FakeOpenAI:
             "down": [{"clue": c, "answer": a} for a, c in down],
         }))
 
+    def write_fill_clues(self, writer=lambda answer: f"Fake clue number {len(answer)}"):
+        """
+        From now on, answer every "write clues for these words" request (the
+        second AI call of a dense puzzle) automatically, using writer(answer).
+        """
+        self.fill_clue_writer = writer
+
     def reply_error(self, exc: Exception):
         self.replies.append(exc)
 
     @property
+    def prompts(self):
+        return [call["messages"][0]["content"] for call in self.calls]
+
+    @property
     def last_prompt(self) -> str:
-        return self.calls[-1]["messages"][0]["content"]
+        return self.prompts[-1]
 
 
 @pytest.fixture(autouse=True)

@@ -35,22 +35,22 @@ def test_generate_returns_a_grid_and_numbered_clues(fake_openai):
 def test_theme_reaches_the_ai(fake_openai):
     fake_openai.reply_words(**ANIMALS)
     client.post("/generate-crossword", json={"theme": "dinosaurs", "size": 7})
-    assert '"dinosaurs"' in fake_openai.last_prompt
+    assert '"dinosaurs"' in fake_openai.prompts[0]
 
 
 def test_random_puzzle_needs_no_theme(fake_openai):
     fake_openai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={"theme": None})
     assert res.status_code == 200
-    assert len(res.json()["grid"]) == 7  # default size
-    assert "Mixed everyday topics" in fake_openai.last_prompt
+    assert len(res.json()["grid"]) == 5  # default size: the classic 5x5 mini
+    assert "Mixed everyday topics" in fake_openai.prompts[0]
 
 
 def test_empty_body_uses_defaults(fake_openai):
     fake_openai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={})
     assert res.status_code == 200
-    assert len(res.json()["grid"]) == 7
+    assert len(res.json()["grid"]) == 5
 
 
 def test_still_returns_a_puzzle_when_the_ai_is_down(fake_openai):
@@ -79,6 +79,44 @@ def test_unexpected_crash_becomes_a_500(monkeypatch):
 def test_non_numeric_size_is_rejected():
     res = client.post("/generate-crossword", json={"theme": "x", "size": "huge"})
     assert res.status_code == 422
+
+
+def test_very_long_theme_is_rejected():
+    res = client.post("/generate-crossword", json={"theme": "x" * 81, "size": 5})
+    assert res.status_code == 422
+
+
+def test_live_website_address_comes_from_the_environment(monkeypatch):
+    monkeypatch.setenv("ALLOWED_ORIGINS", "https://my-crossword.example.com/, https://www.example.com")
+    origins = main.allowed_origins()
+    assert "https://my-crossword.example.com" in origins
+    assert "https://www.example.com" in origins
+    assert "http://localhost:3000" in origins  # local development keeps working
+
+
+def test_without_configuration_only_local_development_is_allowed(monkeypatch):
+    monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    assert main.allowed_origins() == main.LOCAL_ORIGINS
+
+
+def test_live_website_pattern_is_allowed_and_strangers_are_not(monkeypatch):
+    import importlib
+    monkeypatch.setenv("ALLOWED_ORIGIN_REGEX", r"https://ai-mini-crossword(-[a-z0-9]+)?\.onrender\.com")
+    live = TestClient(importlib.reload(main).app)
+    try:
+        def allowed(origin):
+            res = live.options("/generate-crossword", headers={
+                "Origin": origin, "Access-Control-Request-Method": "POST"})
+            return res.headers.get("access-control-allow-origin") == origin
+
+        assert allowed("https://ai-mini-crossword.onrender.com")
+        assert allowed("https://ai-mini-crossword-x7k2.onrender.com")
+        assert allowed("http://localhost:3000")
+        assert not allowed("https://someone-else.onrender.com")
+        assert not allowed("https://ai-mini-crossword.onrender.com.evil.com")
+    finally:
+        monkeypatch.delenv("ALLOWED_ORIGIN_REGEX")
+        importlib.reload(main)
 
 
 def test_frontend_dev_server_is_allowed_by_cors():

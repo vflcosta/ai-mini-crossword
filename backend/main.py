@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -10,16 +12,31 @@ from utils.crossword_gen import generate_crossword as gen_crossword
 app = FastAPI(title="AI Mini Crossword MVP")
 
 # ---------------------------------------------------------
-# CORS setup – allows local dev on 3000 (CRA) and 5173 (Vite)
+# CORS setup: which websites may call this backend.
+# Local dev (ports 3000 and 5173) is always allowed. For the live site, set
+# the ALLOWED_ORIGINS environment variable to the website address, e.g.
+#   ALLOWED_ORIGINS=https://ai-mini-crossword.onrender.com
+# (several addresses can be separated by commas). ALLOWED_ORIGIN_REGEX can
+# allow a pattern of addresses instead; render.yaml uses it for the site's
+# onrender.com address.
 # ---------------------------------------------------------
+LOCAL_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
+def allowed_origins() -> list:
+    extra = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",")]
+    return LOCAL_ORIGINS + [o for o in extra if o]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=allowed_origins(),
+    allow_origin_regex=os.getenv("ALLOWED_ORIGIN_REGEX") or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,9 +47,9 @@ app.add_middleware(
 # Request schema
 # ---------------------------------------------------------
 class GenerateRequest(BaseModel):
-    theme: Optional[str] = None
-    # a mini crossword: at least 3x3, at most 10x10
-    size: int = Field(default=7, ge=3, le=10)
+    theme: Optional[str] = Field(default=None, max_length=80)
+    # a mini crossword: at least 3x3, at most 10x10 (5x5 is the classic mini)
+    size: int = Field(default=5, ge=3, le=10)
 
 # ---------------------------------------------------------
 # Routes

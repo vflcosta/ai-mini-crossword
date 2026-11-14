@@ -64,9 +64,9 @@ describe('home screen', () => {
     expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeEnabled();
   });
 
-  it('"Random Knowledge Mix" asks for a 7x7 puzzle with no theme and opens the game', async () => {
+  it('"Random Knowledge Mix" asks for a 5x5 puzzle with no theme and opens the game', async () => {
     await startRandomPuzzle();
-    expect(generateMock).toHaveBeenCalledWith(null, 7);
+    expect(generateMock).toHaveBeenCalledWith(null, 5);
     expect(screen.getByText('0:00')).toBeInTheDocument();
   });
 
@@ -77,7 +77,7 @@ describe('home screen', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    expect(generateMock).toHaveBeenCalledWith('space', 7);
+    expect(generateMock).toHaveBeenCalledWith('space', 5);
   });
 
   it('blocks the buttons while a puzzle is being generated', async () => {
@@ -105,7 +105,7 @@ describe('home screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Coffee' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     expect(generateMock).toHaveBeenCalledTimes(1);
-    expect(generateMock).toHaveBeenCalledWith('Coffee', 7);
+    expect(generateMock).toHaveBeenCalledWith('Coffee', 5);
   });
 
   it('"Reset" after a theme chip keeps the same theme', async () => {
@@ -114,7 +114,7 @@ describe('home screen', () => {
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     fireEvent.click(screen.getByRole('button', { name: /reset/i }));
     await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
-    expect(generateMock).toHaveBeenLastCalledWith('Space', 7);
+    expect(generateMock).toHaveBeenLastCalledWith('Space', 5);
   });
 });
 
