@@ -117,10 +117,13 @@ Generates a crossword puzzle based on a given theme and grid size.
    cd ai-crossword-backend
    ```
 
-2. **Set Up Virtual Environment**
+2. **Set Up Virtual Environment** (needs Python 3.10 or newer; the installer
+   at [python.org/downloads](https://www.python.org/downloads/) works on Mac
+   and Windows)
 
    ```bash
-   python -m venv venv
+   cd backend
+   python3.14 -m venv venv  # or whichever python3.x you installed
    source venv/bin/activate  # for Mac/Linux
    # or: venv\Scripts\activate  # for Windows
    ```
@@ -128,7 +131,7 @@ Generates a crossword puzzle based on a given theme and grid size.
 3. **Install Dependencies**
 
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
    ```
 
 4. **Create a `.env` File**
