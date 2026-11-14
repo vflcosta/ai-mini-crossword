@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from utils.crossword_gen import generate_crossword as gen_crossword
 
@@ -31,7 +31,8 @@ app.add_middleware(
 # ---------------------------------------------------------
 class GenerateRequest(BaseModel):
     theme: Optional[str] = None
-    size: int = 7
+    # a mini crossword: at least 3x3, at most 10x10
+    size: int = Field(default=7, ge=3, le=10)
 
 # ---------------------------------------------------------
 # Routes

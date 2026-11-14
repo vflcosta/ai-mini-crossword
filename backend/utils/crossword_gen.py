@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import re
 from typing import Optional, List, Dict, Tuple
 from dotenv import load_dotenv
@@ -149,232 +150,151 @@ def generate_clues(theme: Optional[str], size: int, num: int = 16) -> dict:
 
 
 # ---------- placement engine ----------
+#
+# Rules that make the result a real crossword:
+#   * every word after the first must cross a word that is already there
+#   * words never sit side by side or end to end, so the only letter runs in
+#     the grid are the words we placed on purpose (no accidental words)
+#   * each word keeps the clue it was written for
 
-def _empty_grid(size: int) -> List[List[str]]:
-    return [["" for _ in range(size)] for _ in range(size)]
-
-
-def _can_place_across(grid: List[List[str]], word: str, row: int, col: int) -> bool:
-    size = len(grid)
-    if col + len(word) > size:
-        return False
-    if col > 0 and grid[row][col - 1] not in ("", "#"):
-        return False
-    if col + len(word) < size and grid[row][col + len(word)] not in ("", "#"):
-        return False
-    for i, ch in enumerate(word):
-        cell = grid[row][col + i]
-        if cell not in ("", ch):
-            return False
-    return True
+_EXTRA_TRIES = 60  # extra word orders to try per puzzle (about 0.1s in total)
 
 
-def _place_across(grid: List[List[str]], word: str, row: int, col: int):
-    for i, ch in enumerate(word):
-        grid[row][col + i] = ch
+class _Board:
+    def __init__(self, size: int):
+        self.size = size
+        self.letters: List[List[str]] = [["" for _ in range(size)] for _ in range(size)]
+        # which cells already belong to an across / a down word
+        self.used = {
+            "across": [[False] * size for _ in range(size)],
+            "down": [[False] * size for _ in range(size)],
+        }
+        self.placed: List[Dict] = []
+        self.crossings = 0
+
+    def _filled(self, row: int, col: int) -> bool:
+        return 0 <= row < self.size and 0 <= col < self.size and self.letters[row][col] != ""
+
+    def count_crossings(self, word: str, dir_: str, row: int, col: int) -> Optional[int]:
+        """How many existing words this placement would cross, or None if it is not allowed."""
+        dr, dc = (0, 1) if dir_ == "across" else (1, 0)
+        end_row = row + dr * (len(word) - 1)
+        end_col = col + dc * (len(word) - 1)
+        if row < 0 or col < 0 or end_row >= self.size or end_col >= self.size:
+            return None
+        # the squares just before and just after the word must be free
+        if self._filled(row - dr, col - dc) or self._filled(end_row + dr, end_col + dc):
+            return None
+
+        crossings = 0
+        for i, ch in enumerate(word):
+            r, c = row + dr * i, col + dc * i
+            existing = self.letters[r][c]
+            if existing:
+                # may only reuse a letter of a word running the other way
+                if existing != ch or self.used[dir_][r][c]:
+                    return None
+                crossings += 1
+            elif self._filled(r + dc, c + dr) or self._filled(r - dc, c - dr):
+                # a new letter must not touch another word sideways
+                return None
+        return crossings
+
+    def place(self, entry: Dict[str, str], dir_: str, row: int, col: int, crossings: int = 0):
+        word = entry["answer"]
+        dr, dc = (0, 1) if dir_ == "across" else (1, 0)
+        for i, ch in enumerate(word):
+            r, c = row + dr * i, col + dc * i
+            self.letters[r][c] = ch
+            self.used[dir_][r][c] = True
+        self.placed.append(
+            {"dir": dir_, "row": row, "col": col, "clue": entry["clue"], "answer": word}
+        )
+        self.crossings += crossings
+
+    def best_spot(self, word: str) -> Optional[Tuple[int, str, int, int]]:
+        """The legal position with the most crossings: (crossings, dir, row, col)."""
+        best: Optional[Tuple[int, str, int, int]] = None
+        for dir_ in ("across", "down"):
+            for row in range(self.size):
+                for col in range(self.size):
+                    n = self.count_crossings(word, dir_, row, col)
+                    if n and (best is None or n > best[0]):
+                        best = (n, dir_, row, col)
+        return best
 
 
-def _can_place_down(grid: List[List[str]], word: str, row: int, col: int) -> bool:
-    size = len(grid)
-    if row + len(word) > size:
-        return False
-    if row > 0 and grid[row - 1][col] not in ("", "#"):
-        return False
-    if row + len(word) < size and grid[row + len(word)][col] not in ("", "#"):
-        return False
-    for i, ch in enumerate(word):
-        cell = grid[row + i][col]
-        if cell not in ("", ch):
-            return False
-    return True
+def _layout(order: List[Dict[str, str]], size: int) -> _Board:
+    """Build one candidate puzzle: order[0] goes in the top row, the rest are
+    added in order wherever they cross best."""
+    board = _Board(size)
+    first = order[0]
+    board.place(first, "across", 0, (size - len(first["answer"])) // 2)
 
-
-def _place_down(grid: List[List[str]], word: str, row: int, col: int):
-    for i, ch in enumerate(word):
-        grid[row + i][col] = ch
-
-
-def _find_best_crossing_spots(grid: List[List[str]], word: str) -> List[Tuple[str, int, int, int]]:
-    """
-    Return list of (score, dir, row, col) for where this word could cross.
-    """
-    size = len(grid)
-    candidates: List[Tuple[int, str, int, int]] = []
-    letters = list(word)
-
-    # across
-    for r in range(size):
-      for c in range(size - len(word) + 1):
-        score = 0
-        ok = True
-        for i, ch in enumerate(letters):
-          cell = grid[r][c + i]
-          if cell == ch:
-            score += 1
-          elif cell not in ("", "#"):
-            ok = False
-            break
-        if ok and score > 0 and _can_place_across(grid, word, r, c):
-          candidates.append((score, "across", r, c))
-
-    # down
-    for c in range(size):
-      for r in range(size - len(word) + 1):
-        score = 0
-        ok = True
-        for i, ch in enumerate(letters):
-          cell = grid[r + i][c]
-          if cell == ch:
-            score += 1
-          elif cell not in ("", "#"):
-            ok = False
-            break
-        if ok and score > 0 and _can_place_down(grid, word, r, c):
-          candidates.append((score, "down", r, c))
-
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    return candidates
+    pending = order[1:]
+    progress = True
+    while pending and progress:  # retry skipped words: new words open new spots
+        progress = False
+        still_pending = []
+        for entry in pending:
+            spot = board.best_spot(entry["answer"])
+            if spot:
+                n, dir_, row, col = spot
+                board.place(entry, dir_, row, col, n)
+                progress = True
+            else:
+                still_pending.append(entry)
+        pending = still_pending
+    return board
 
 
 def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
-    grid = _empty_grid(size)
-    placed: List[Dict[str, str]] = []
-
-    if not words:
-        return grid, {"across": [], "down": []}
-
-    # sort by length desc
-    words_sorted = sorted(words, key=lambda w: len(w["answer"]), reverse=True)
-
-    # place first word across in the TOP row (so your UI doesn't show gaps in row 0)
-    first = words_sorted[0]
-    first_word = first["answer"]
-    start_col = (size - len(first_word)) // 2 if len(first_word) <= size else 0
-    row = 0
-    _place_across(grid, first_word, row, start_col)
-    placed.append(
-        {"dir": "across", "row": row, "col": start_col,
-         "clue": first["clue"], "answer": first_word}
-    )
-
-    # place the rest
-    for w in words_sorted[1:]:
-        word = w["answer"]
-        # try to cross
-        spots = _find_best_crossing_spots(grid, word)
-        placed_flag = False
-        for score, dir_, r, c in spots:
-            if dir_ == "across" and _can_place_across(grid, word, r, c):
-                _place_across(grid, word, r, c)
-                placed.append(
-                    {"dir": "across", "row": r, "col": c,
-                     "clue": w["clue"], "answer": word}
-                )
-                placed_flag = True
-                break
-            elif dir_ == "down" and _can_place_down(grid, word, r, c):
-                _place_down(grid, word, r, c)
-                placed.append(
-                    {"dir": "down", "row": r, "col": c,
-                     "clue": w["clue"], "answer": word}
-                )
-                placed_flag = True
-                break
-
-        if placed_flag:
+    # keep only words that fit, and only the first copy of a repeated answer
+    seen = set()
+    usable: List[Dict[str, str]] = []
+    for w in words:
+        answer = w["answer"]
+        if answer in seen or not (1 <= len(answer) <= size):
             continue
+        seen.add(answer)
+        usable.append(w)
 
-        # fallback: scan across
-        simple = False
-        for rr in range(size):
-            for cc in range(size - len(word) + 1):
-                if _can_place_across(grid, word, rr, cc):
-                    _place_across(grid, word, rr, cc)
-                    placed.append(
-                        {"dir": "across", "row": rr, "col": cc,
-                         "clue": w["clue"], "answer": word}
-                    )
-                    simple = True
-                    break
-            if simple:
-                break
+    if not usable:
+        return [["#"] * size for _ in range(size)], {"across": [], "down": []}
 
-        if not simple:
-            for cc in range(size):
-                for rr in range(size - len(word) + 1):
-                    if _can_place_down(grid, word, rr, cc):
-                        _place_down(grid, word, rr, cc)
-                        placed.append(
-                            {"dir": "down", "row": rr, "col": cc,
-                             "clue": w["clue"], "answer": word}
-                        )
-                        simple = True
-                        break
-                if simple:
-                    break
+    # Try several word orders and keep the puzzle with the most words (ties:
+    # most crossings, then the earliest try). First: longest word first, with
+    # each word in turn as the starting word. Then a fixed set of shuffles;
+    # the fixed seed means the same words always give the same puzzle.
+    usable.sort(key=lambda w: len(w["answer"]), reverse=True)
+    orders = [[usable[i]] + usable[:i] + usable[i + 1:] for i in range(len(usable))]
+    rng = random.Random(0)
+    for _ in range(_EXTRA_TRIES):
+        shuffled = usable[:]
+        rng.shuffle(shuffled)
+        orders.append(shuffled)
 
-    # fill empties with '#'
-    for r in range(size):
-        for c in range(size):
-            if not grid[r][c]:
-                grid[r][c] = "#"
+    best: Optional[_Board] = None
+    for order in orders:
+        board = _layout(order, size)
+        if best is None or (len(board.placed), board.crossings) > (len(best.placed), best.crossings):
+            best = board
 
-    # renumber with length>=3 only
-    num = 1
-    across_final = []
-    down_final = []
+    grid = [[cell or "#" for cell in row] for row in best.letters]
 
-    for r in range(size):
-        for c in range(size):
-            if grid[r][c] == "#":
-                continue
+    # standard numbering: left to right, top to bottom; an across and a down
+    # word that start in the same square share one number
+    starts = sorted({(p["row"], p["col"]) for p in best.placed})
+    number_of = {cell: i + 1 for i, cell in enumerate(starts)}
 
-            # across start?
-            starts_across = (c == 0 or grid[r][c - 1] == "#") and (c + 1 < size and grid[r][c + 1] != "#")
-            if starts_across:
-                # read word
-                letters = []
-                cc = c
-                while cc < size and grid[r][cc] != "#":
-                    letters.append(grid[r][cc])
-                    cc += 1
-                if len(letters) >= 3:
-                    across_final.append({
-                        "number": num,
-                        "clue": _find_clue_for_placed(placed, "across", r, c),
-                        "answer": "".join(letters),
-                    })
-                    num += 1
-
-            # down start?
-            starts_down = (r == 0 or grid[r - 1][c] == "#") and (r + 1 < size and grid[r + 1][c] != "#")
-            if starts_down:
-                letters = []
-                rr = r
-                while rr < size and grid[rr][c] != "#":
-                    letters.append(grid[rr][c])
-                    rr += 1
-                if len(letters) >= 3:
-                    down_final.append({
-                        "number": num,
-                        "clue": _find_clue_for_placed(placed, "down", r, c),
-                        "answer": "".join(letters),
-                    })
-                    num += 1
-
-    return grid, {"across": across_final, "down": down_final}
-
-
-def _find_clue_for_placed(placed: List[Dict[str, str]], dir_: str, row: int, col: int) -> str:
-    """
-    Loosened matcher:
-    - match on (dir, row, col) ONLY
-    - if not found, give simple fallback
-    """
-    for p in placed:
-        if p["dir"] == dir_ and p["row"] == row and p["col"] == col:
-            return p["clue"]
-    return "Clue to fill"
+    clues: Dict[str, List[Dict]] = {"across": [], "down": []}
+    for p in sorted(best.placed, key=lambda p: (p["row"], p["col"])):
+        clues[p["dir"]].append({
+            "number": number_of[(p["row"], p["col"])],
+            "clue": p["clue"],
+            "answer": p["answer"],
+        })
+    return grid, clues
 
 
 # ---------- public entrypoint ----------

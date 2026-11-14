@@ -1,8 +1,8 @@
 """
 The rules every generated crossword must obey, whatever words the AI gives us.
 
-Tests marked @known_bug describe correct behaviour that the generator does not
-have yet (see conftest.known_bug). Everything else must pass on every push.
+If a rule here is not working yet, mark its test with @known_bug (see
+conftest.known_bug) so it is tracked without blocking pushes.
 """
 import re
 
@@ -10,7 +10,6 @@ import pytest
 
 from utils.crossword_gen import build_crossword_from_words
 
-from .conftest import known_bug
 from .helpers import REALISTIC_POOLS, expected_numbers, letter_runs, pool
 
 CELL = re.compile(r"^(#|[A-Z])$")
@@ -25,7 +24,7 @@ def build_all(size=7):
         yield name, words, grid, clues
 
 
-# ---------- simple puzzles: these work today and must keep working ----------
+# ---------- simple puzzles ----------
 
 def test_two_crossing_words():
     grid, clues = build_crossword_from_words(
@@ -56,7 +55,7 @@ def test_three_words_each_keep_their_own_clue():
     ]
 
 
-def test_longest_word_goes_first_in_the_top_row():
+def test_longest_word_goes_in_the_top_row_when_no_other_layout_is_better():
     grid, _ = build_crossword_from_words(
         pool(("TEA", "Hot drink"), ("PLANT", "It grows")), size=5
     )
@@ -84,7 +83,7 @@ def test_no_words_gives_an_empty_puzzle():
     assert clues == {"across": [], "down": []}
 
 
-# ---------- rules that already hold for realistic puzzles ----------
+# ---------- rules for realistic puzzles ----------
 
 @pytest.mark.parametrize("size", [5, 6, 7])
 def test_grid_is_square_and_contains_only_letters_or_blocks(size):
@@ -126,10 +125,8 @@ def test_same_words_always_give_the_same_puzzle():
     assert first == second
 
 
-# ---------- rules the generator breaks today ----------
+# ---------- rules that used to be broken (regression tests) ----------
 
-@known_bug("words get stacked side by side, so the puzzle contains made-up "
-           "answers like PLANETL or PROCEVA that the AI never gave")
 def test_every_answer_is_a_real_word_from_the_ai():
     for name, words, _, clues in build_all():
         allowed = {w["answer"] for w in words}
@@ -138,7 +135,6 @@ def test_every_answer_is_a_real_word_from_the_ai():
                 assert clue["answer"] in allowed, f"{name}: made-up answer {clue['answer']}"
 
 
-@known_bug("accidental words get the placeholder text 'Clue to fill'")
 def test_no_placeholder_clues():
     for name, _, _, clues in build_all():
         for direction in ("across", "down"):
@@ -146,7 +142,6 @@ def test_no_placeholder_clues():
                 assert clue["clue"] != "Clue to fill", f"{name}: {clue}"
 
 
-@known_bug("a clue can end up attached to a different answer than the one it was written for")
 def test_each_clue_stays_with_its_own_answer():
     for name, words, _, clues in build_all():
         clue_for = {w["answer"]: w["clue"] for w in words}
@@ -158,7 +153,6 @@ def test_each_clue_stays_with_its_own_answer():
                     pytest.fail(f"{name}: '{clue['clue']}' is attached to {clue['answer']}")
 
 
-@known_bug("neighbouring words touch and create stray two-letter pairs that are not words")
 def test_no_stray_two_letter_pairs():
     words = pool(("GREEN", "Color of grass"), ("NIGHT", "Opposite of day"),
                  ("HIGH", "Not low"), ("NEW", "Opposite of old"), ("CAT", "Feline pet"))
@@ -167,8 +161,6 @@ def test_no_stray_two_letter_pairs():
     assert stray == []
 
 
-@known_bug("when an across and a down word start in the same square they get "
-           "two different numbers instead of sharing one")
 def test_across_and_down_starting_in_the_same_square_share_a_number():
     grid, clues = build_crossword_from_words(
         pool(("CAT", "Feline pet"), ("COW", "It moos")), size=5
@@ -176,7 +168,6 @@ def test_across_and_down_starting_in_the_same_square_share_a_number():
     assert clues["across"][0]["number"] == clues["down"][0]["number"] == 1
 
 
-@known_bug("clue numbers do not follow standard crossword numbering")
 def test_clue_numbers_follow_standard_crossword_numbering():
     for name, _, grid, clues in build_all():
         numbers = expected_numbers(grid)

@@ -4,8 +4,6 @@ from fastapi.testclient import TestClient
 
 import main
 
-from .conftest import known_bug
-
 client = TestClient(main.app)
 
 ANIMALS = dict(across=[("TIGER", "Striped cat"), ("OTTER", "River swimmer")],
@@ -30,7 +28,8 @@ def test_generate_returns_a_grid_and_numbered_clues(fake_openai):
         for clue in body["clues"][direction]:
             assert set(clue) == {"number", "clue", "answer"}
             assert isinstance(clue["number"], int)
-    assert body["clues"]["across"][0]["answer"] == "TIGER"
+    answers = {c["answer"] for d in ("across", "down") for c in body["clues"][d]}
+    assert answers and answers <= {"TIGER", "OTTER", "GOAT", "RAT"}
 
 
 def test_theme_reaches_the_ai(fake_openai):
@@ -91,16 +90,21 @@ def test_frontend_dev_server_is_allowed_by_cors():
     assert res.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
 
-@known_bug("sizes that cannot hold a puzzle crash the server (500) instead of "
-           "being rejected with a clear 422")
 @pytest.mark.parametrize("size", [-1, 0, 1, 2])
 def test_too_small_size_is_rejected(size):
     res = client.post("/generate-crossword", json={"theme": "x", "size": size})
     assert res.status_code == 422
 
 
-@known_bug("there is no upper limit on grid size, so anyone can request a huge grid")
-def test_absurdly_large_size_is_rejected(fake_openai):
-    fake_openai.reply_words(**ANIMALS)
-    res = client.post("/generate-crossword", json={"theme": "x", "size": 500})
+@pytest.mark.parametrize("size", [11, 500])
+def test_too_large_size_is_rejected(size):
+    res = client.post("/generate-crossword", json={"theme": "x", "size": size})
     assert res.status_code == 422
+
+
+@pytest.mark.parametrize("size", [3, 5, 10])
+def test_smallest_and_largest_allowed_sizes_work(fake_openai, size):
+    fake_openai.reply_words(**ANIMALS)
+    res = client.post("/generate-crossword", json={"theme": "x", "size": size})
+    assert res.status_code == 200
+    assert len(res.json()["grid"]) == size

@@ -100,11 +100,21 @@ describe('home screen', () => {
     expect(screen.getByRole('button', { name: /random knowledge mix/i })).toBeEnabled();
   });
 
-  it.fails('KNOWN BUG: tapping a theme chip like "Coffee" generates a Coffee puzzle (today it ignores the chip)', async () => {
+  it('tapping a theme chip like "Coffee" generates a Coffee puzzle', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Coffee' }));
-    await waitFor(() => expect(generateMock).toHaveBeenCalled());
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(generateMock).toHaveBeenCalledTimes(1);
     expect(generateMock).toHaveBeenCalledWith('Coffee', 7);
+  });
+
+  it('"Reset" after a theme chip keeps the same theme', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Space' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
+    await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
+    expect(generateMock).toHaveBeenLastCalledWith('Space', 7);
   });
 });
 
@@ -199,12 +209,31 @@ describe('typing', () => {
     expect(squares()[SQUARE.L]).toHaveFocus();
   });
 
-  it.fails('KNOWN BUG: typing in a down word moves the cursor down (today it always moves right)', async () => {
+  it('typing in a down word moves the cursor down', async () => {
     await startRandomPuzzle();
     click(SQUARE.L);
     click(SQUARE.L); // switch to the down word LEAF
     type(SQUARE.L, 'L');
     expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
+    expect(screen.getByText('It falls in autumn')).toBeInTheDocument();
+  });
+
+  it('the cursor stays put at the end of a down word', async () => {
+    await startRandomPuzzle();
+    const lastOfTree = SOLUTION.length - 1;
+    click(lastOfTree);
+    type(lastOfTree, 'E');
+    expect(squares()[lastOfTree]).toHaveFocus();
+  });
+
+  it('Backspace in a down word goes back up', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.L);
+    click(SQUARE.L); // switch to the down word LEAF
+    type(SQUARE.L, 'L');
+    fireEvent.keyDown(squares()[SQUARE.E_of_LEAF], { key: 'Backspace' });
+    expect(squares()[SQUARE.L]).toHaveFocus();
+    expect(squares()[SQUARE.L]).toHaveValue('');
   });
 });
 

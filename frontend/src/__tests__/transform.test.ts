@@ -139,19 +139,19 @@ describe('backendToCrossword: clues', () => {
     }
   );
 
-  it('does not crash when the backend sends fewer clues than words in the grid', () => {
-    const cw = backendToCrossword({ ...PLANT, clues: { across: [], down: [] } }, 'Nature');
-    expect(cw.clues.across).toEqual([]);
-    expect(cw.clues.down).toEqual([]);
+  it('gives every word in the grid a clue entry even when the backend sends fewer clues', () => {
+    const cw = backendToCrossword({ ...PLANT, clues: { across: PLANT.clues.across, down: [] } }, 'Nature');
+    expect(cw.clues.down.map((c) => [c.number, c.answer, c.clue])).toEqual([
+      [2, 'LEAF', '(no clue from generator)'],
+      [3, 'TREE', '(no clue from generator)'],
+    ]);
   });
 
-  it.fails(
-    'KNOWN BUG: a numbered square always has a clue (today a missing clue leaves a numbered square with nothing to show)',
-    () => {
-      const cw = backendToCrossword({ ...PLANT, clues: { across: PLANT.clues.across, down: [] } }, 'Nature');
-      const clueNumbers = new Set([...cw.clues.across, ...cw.clues.down].map((c) => c.number));
-      const gridNumbers = cw.grid.flat().flatMap((c) => (c.number ? [c.number] : []));
-      gridNumbers.forEach((n) => expect(clueNumbers.has(n)).toBe(true));
-    }
-  );
+  it('every numbered square has a clue', () => {
+    const cw = backendToCrossword({ ...PLANT, clues: { across: [], down: [] } }, 'Nature');
+    const clueNumbers = new Set([...cw.clues.across, ...cw.clues.down].map((c) => c.number));
+    const gridNumbers = cw.grid.flat().flatMap((c) => (c.number ? [c.number] : []));
+    expect(gridNumbers).toEqual([1, 2, 3]);
+    gridNumbers.forEach((n) => expect(clueNumbers.has(n)).toBe(true));
+  });
 });

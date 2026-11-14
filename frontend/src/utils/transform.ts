@@ -7,7 +7,7 @@ import type { BackendPayload } from "../types/api";
  * - "#" => black square
  * - anything that is NOT a single A–Z char => black square (prevents junk letters)
  * - number only real word starts (across/down) with length >= 3
- * - map backend clues IN ORDER to the detected starts
+ * - map backend clues IN ORDER to the detected starts (every start gets a clue)
  * - if backend gives placeholder clues ("Clue to fill", "(clue)", empty) show a safe fallback
  */
 export function backendToCrossword(
@@ -132,14 +132,11 @@ export function backendToCrossword(
 
   // across
   const across: Clue[] = [];
-  for (
-    let i = 0;
-    i < Math.min(acrossStarts.length, payload.clues.across.length);
-    i++
-  ) {
+  for (let i = 0; i < acrossStarts.length; i++) {
     const st = acrossStarts[i];
     const src = payload.clues.across[i];
 
+    // a word in the grid always gets a clue entry, even if the backend sent none
     const clueText = isJunkClue(src?.clue)
       ? "(no clue from generator)"
       : src!.clue;
@@ -156,14 +153,11 @@ export function backendToCrossword(
 
   // down
   const down: Clue[] = [];
-  for (
-    let i = 0;
-    i < Math.min(downStarts.length, payload.clues.down.length);
-    i++
-  ) {
+  for (let i = 0; i < downStarts.length; i++) {
     const st = downStarts[i];
     const src = payload.clues.down[i];
 
+    // a word in the grid always gets a clue entry, even if the backend sent none
     const clueText = isJunkClue(src?.clue)
       ? "(no clue from generator)"
       : src!.clue;
