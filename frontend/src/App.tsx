@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
-import { FEATURED_THEMES, GRID_SIZE } from "./config";
+import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE } from "./config";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
 
@@ -45,6 +46,18 @@ export function limitNotice(err: LimitReachedError, now: Date = new Date()): Not
   };
 }
 
+/** "Sunday, 15 November" for the puzzle day. */
+export function puzzleDateLabel(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: PUZZLE_TIMEZONE,
+  }).format(now);
+}
+
+const isPrivacyHash = () => window.location.hash === "#privacy";
+
 export default function App() {
   const [view, setView] = useState<"home" | "playing">("home");
   const [theme, setTheme] = useState("");
@@ -62,6 +75,17 @@ export default function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState("");
+
+  // the privacy policy has its own address (…/#privacy) so it can be linked to
+  const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
+  useEffect(() => {
+    const onHashChange = () => {
+      setShowPrivacy(isPrivacyHash());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   // timer
   useEffect(() => {
@@ -266,7 +290,9 @@ export default function App() {
       <div className="app-shell">
         {loading && <PuzzleLoader label={loadingLabel} />}
 
-        {view === "home" && !loading && (
+        {view === "home" && !loading && showPrivacy && <PrivacyPolicy />}
+
+        {view === "home" && !loading && !showPrivacy && (
           <>
             <header className="hero">
               <div className="hero-icon" aria-hidden>
@@ -274,18 +300,33 @@ export default function App() {
               </div>
               <div className="hero-text">
                 <h1 className="app-title">AI Mini Crossword</h1>
+                <p className="app-tagline">Daily brain play!</p>
                 <p className="app-subtitle">
-                  Daily Brain Play – Challenge your mind with themed mini crosswords!
+                  Challenge your mind with daily, themed mini crosswords.
                 </p>
               </div>
             </header>
 
-            <section className="panel">
-              <h2 className="panel-title">Choose Your Challenge</h2>
+            {/* 1. the fastest way to play: one tap, no decisions */}
+            <section className="panel panel-daily" aria-labelledby="daily-title">
+              <p className="eyebrow">{puzzleDateLabel()}</p>
+              <h2 className="panel-title" id="daily-title">
+                {DAILY_LABEL}
+              </h2>
               <p className="panel-subtitle">
-                Enter a theme like "history", "space", "art", "nature", or "science" – or surprise
-                yourself!
+                A fresh 5×5 puzzle every day, with topics from all over. Takes about 5 minutes.
               </p>
+              <button type="button" className="primary-btn primary-btn-large" onClick={handleRandom}>
+                Play today's puzzle
+              </button>
+              <p className="daily-caption">The same puzzle for everyone, new every day</p>
+            </section>
+
+            {/* 2. for players who want a topic of their own */}
+            <section className="panel" aria-labelledby="theme-title">
+              <h2 className="panel-title" id="theme-title">
+                Or pick a theme
+              </h2>
               {notice && (
                 <div
                   className={`notice notice-${notice.tone}`}
@@ -295,7 +336,7 @@ export default function App() {
                   <p className="notice-body">{notice.body}</p>
                   {notice.tone === "limit" && (
                     <button type="button" className="notice-action" onClick={handleRandom}>
-                      Play today's puzzle
+                      Play today's puzzle instead
                     </button>
                   )}
                   <button
@@ -308,59 +349,12 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <input
-                className="text-input"
-                placeholder="Enter a theme (optional)"
-                value={theme}
-                maxLength={80}
-                onChange={(e) => setTheme(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) handleGenerateFromTheme();
-                }}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleGenerateFromTheme}
-                disabled={loading}
-              >
-                {loading ? "Generating..." : "Generate from Theme"}
-              </button>
-              {newPuzzlesLeft !== null && newPuzzlesLeft <= 3 && (
-                <p className="limit-hint">
-                  {newPuzzlesLeft === 0
-                    ? "No new themes left today. Themes someone already played today still work."
-                    : `${newPuzzlesLeft} new ${newPuzzlesLeft === 1 ? "theme" : "themes"} left today`}
-                </p>
-              )}
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={handleRandom}
-                disabled={loading}
-              >
-                🌐 {DAILY_LABEL}
-              </button>
-              <p className="daily-caption">Today's puzzle: the same for everyone, new every day</p>
-            </section>
-
-            <section className="panel panel-secondary">
-              <div className="panel-icon" aria-hidden>
-                🧠
-              </div>
-              <h2 className="panel-title">Ready to Exercise Your Brain?</h2>
-              <p className="panel-subtitle">
-                Choose a theme you love or let us surprise you with a random knowledge mix. Each
-                puzzle comes with fun facts to learn something new!
-              </p>
-              <p className="daily-caption">Featured themes are free to play anytime</p>
               <div className="pill-row">
                 {FEATURED_THEMES.map((label) => (
                   <button
                     key={label}
+                    type="button"
                     className="pill-btn"
-                    disabled={loading}
                     onClick={() => {
                       setTheme(label);
                       generate(label);
@@ -370,7 +364,80 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              <p className="daily-caption">Featured themes are free to play anytime</p>
+
+              <label className="field-label" htmlFor="theme-input">
+                Curious about something else?
+              </label>
+              <div className="theme-row">
+                <input
+                  id="theme-input"
+                  className="text-input"
+                  placeholder="Type any theme, e.g. volcanoes"
+                  value={theme}
+                  maxLength={80}
+                  onChange={(e) => setTheme(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && theme.trim()) handleGenerateFromTheme();
+                  }}
+                />
+                <button
+                  type="button"
+                  className="secondary-btn theme-btn"
+                  onClick={handleGenerateFromTheme}
+                  disabled={!theme.trim()}
+                >
+                  Create puzzle
+                </button>
+              </div>
+              {newPuzzlesLeft !== null && newPuzzlesLeft <= 3 && (
+                <p className="limit-hint">
+                  {newPuzzlesLeft === 0
+                    ? "No new themes left today. Themes someone already played today still work."
+                    : `${newPuzzlesLeft} new ${newPuzzlesLeft === 1 ? "theme" : "themes"} left today`}
+                </p>
+              )}
             </section>
+
+            {/* 3. for visitors who want to know more before playing */}
+            <section className="panel panel-secondary" aria-labelledby="how-title">
+              <h2 className="panel-title" id="how-title">
+                How it works
+              </h2>
+              <ol className="how-list">
+                <li>
+                  <span className="how-icon" aria-hidden>
+                    🎯
+                  </span>
+                  <span>
+                    <strong>Pick your puzzle.</strong> Play today's mix or choose any theme you are
+                    curious about.
+                  </span>
+                </li>
+                <li>
+                  <span className="how-icon" aria-hidden>
+                    ✏️
+                  </span>
+                  <span>
+                    <strong>Solve it in minutes.</strong> A 5×5 mini crossword, made fresh by AI.
+                    Stuck? Reveal an answer and keep going.
+                  </span>
+                </li>
+                <li>
+                  <span className="how-icon" aria-hidden>
+                    💡
+                  </span>
+                  <span>
+                    <strong>Learn something new.</strong> Every clue is a small fact, so you leave
+                    knowing a little more than when you came.
+                  </span>
+                </li>
+              </ol>
+            </section>
+
+            <footer className="site-footer">
+              <a href="#privacy">Privacy Policy</a>
+            </footer>
           </>
         )}
 

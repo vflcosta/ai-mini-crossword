@@ -415,3 +415,136 @@ body {
     animation: none;
   }
 }
+
+/* === home screen: tagline, daily card, theme card, how it works === */
+.app-tagline {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #7c3aed;
+}
+.app-subtitle {
+  margin-bottom: 0;
+}
+.panel-title {
+  margin-top: 0;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7c3aed;
+}
+.panel-daily {
+  text-align: center;
+  border: 2px solid #ede9fe;
+}
+.panel-daily .panel-title {
+  font-size: 1.3rem;
+}
+.primary-btn-large {
+  padding: 15px 14px;
+  font-size: 1rem;
+}
+.panel:not(.panel-secondary) .pill-row {
+  justify-content: center;
+}
+.pill-btn {
+  padding: 10px 16px; /* comfortable tap target */
+}
+.field-label {
+  display: block;
+  margin: 18px 0 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.theme-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.theme-row .text-input {
+  margin-bottom: 0;
+  font-size: 1rem; /* 16px: stops phones zooming in on focus */
+}
+.theme-btn {
+  margin-top: 0;
+  font-weight: 600;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #4c1d95;
+}
+.theme-btn:disabled {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+#theme-title {
+  margin-bottom: 12px;
+}
+.how-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+.how-list li {
+  display: flex;
+  gap: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #374151;
+}
+.how-icon {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+.site-footer {
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 4px 0 8px;
+}
+.site-footer a,
+.legal a {
+  color: #6b7280;
+}
+
+/* === privacy policy page === */
+.legal {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #374151;
+}
+.legal .link-btn {
+  display: inline-block;
+  text-decoration: none;
+  color: #1c2340;
+  margin-bottom: 8px;
+}
+.legal-title {
+  font-size: 1.4rem;
+  margin: 4px 0 2px;
+  color: #121212;
+}
+.legal-meta {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+.legal h2 {
+  font-size: 1rem;
+  margin: 20px 0 6px;
+  color: #121212;
+}
+.legal ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.legal li {
+  margin-bottom: 8px;
+}

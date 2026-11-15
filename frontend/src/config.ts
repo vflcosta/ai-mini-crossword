@@ -17,3 +17,13 @@ export const GRID_SIZE = 5;
  * backend/utils/puzzle_service.py (a backend test checks they match).
  */
 export const FEATURED_THEMES = ["History", "Space", "Art", "Nature", "Science"];
+
+/** A new puzzle day starts at midnight here (keep in sync with PUZZLE_TIMEZONE on the backend). */
+export const PUZZLE_TIMEZONE = "Europe/Zurich";
+
+/**
+ * Privacy policy page. Set PRIVACY_CONTACT to the email address players can
+ * write to (required before launch), and bump the date when the policy changes.
+ */
+export const PRIVACY_CONTACT = "";
+export const PRIVACY_LAST_UPDATED = "15 November 2026";

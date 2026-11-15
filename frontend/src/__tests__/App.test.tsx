@@ -2,9 +2,9 @@
  * Playing the game, the way a real user would: click, type, solve.
  * The backend is faked, so these tests need no server and no AI.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import App, { limitNotice, timeUntil } from '../App';
+import App, { limitNotice, puzzleDateLabel, timeUntil } from '../App';
 import { generateCrossword, LimitReachedError } from '../api';
 import type { BackendPayload } from '../types/api';
 
@@ -47,7 +47,7 @@ const click = (index: number) => fireEvent.click(squares()[index]);
 
 async function startRandomPuzzle() {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+  fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
   await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
 }
 
@@ -60,25 +60,55 @@ beforeEach(() => {
 });
 
 describe('home screen', () => {
-  it('shows the title and both ways to start', () => {
+  it('shows the title, the tagline, and today\'s puzzle as the main action', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: 'AI Mini Crossword' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Generate from Theme' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeEnabled();
+    expect(screen.getByText('Daily brain play!')).toBeInTheDocument();
+    expect(
+      screen.getByText('Challenge your mind with daily, themed mini crosswords.')
+    ).toBeInTheDocument();
+    const play = screen.getByRole('button', { name: "Play today's puzzle" });
+    expect(play).toBeEnabled();
+    expect(play).toHaveClass('primary-btn');
+    // today's puzzle comes before the theme options
+    const theme = screen.getByRole('heading', { name: 'Or pick a theme' });
+    expect(play.compareDocumentPosition(theme) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('"Today\'s Knowledge Mix" asks for a 5x5 puzzle with no theme and opens the game', async () => {
+  it('shows today\'s date on the daily puzzle', () => {
+    render(<App />);
+    expect(screen.getByText(puzzleDateLabel())).toBeInTheDocument();
+    expect(puzzleDateLabel(new Date('2026-11-14T23:30:00Z'))).toBe('Sunday 15 November');
+  });
+
+  it('"Create puzzle" needs a theme first', () => {
+    render(<App />);
+    const create = screen.getByRole('button', { name: 'Create puzzle' });
+    expect(create).toBeDisabled();
+    fireEvent.keyDown(screen.getByPlaceholderText(/type any theme/i), { key: 'Enter' });
+    expect(generateMock).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), { target: { value: 'jazz' } });
+    expect(create).toBeEnabled();
+  });
+
+  it('explains how it works in three steps', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument();
+    expect(document.querySelectorAll('.how-list li')).toHaveLength(3);
+  });
+
+  it('"Play today\'s puzzle" asks for a 5x5 puzzle with no theme and opens the game', async () => {
     await startRandomPuzzle();
     expect(generateMock).toHaveBeenCalledWith(null, 5);
     expect(screen.getByText('0:00')).toBeInTheDocument();
   });
 
-  it('"Generate from Theme" sends the typed theme, without extra spaces', async () => {
+  it('"Create puzzle" sends the typed theme, without extra spaces', async () => {
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText(/enter a theme/i), {
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), {
       target: { value: '  space  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     expect(generateMock).toHaveBeenCalledWith('space', 5);
   });
@@ -94,7 +124,7 @@ describe('home screen', () => {
     expect(loader).toHaveTextContent('This can take up to 1 minute');
     expect(document.querySelectorAll('.skeleton-cell')).toHaveLength(25);
     // the home screen is hidden, so nothing can be started twice
-    expect(screen.queryByRole('button', { name: 'Generate from Theme' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create puzzle' })).not.toBeInTheDocument();
     expect(generateMock).toHaveBeenCalledTimes(1);
 
     finish(PUZZLE);
@@ -105,7 +135,7 @@ describe('home screen', () => {
   it("the loading screen names today's puzzle", async () => {
     generateMock.mockReturnValue(new Promise(() => {}));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
     expect(await screen.findByRole('status')).toHaveTextContent(
       "Creating your Today's Knowledge Mix crossword…"
     );
@@ -114,26 +144,26 @@ describe('home screen', () => {
   it('the loading screen goes away and the typed theme is kept when generation fails', async () => {
     generateMock.mockRejectedValue(new Error('Backend error: 500'));
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText(/enter a theme/i), { target: { value: 'jazz' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), { target: { value: 'jazz' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(document.querySelector('.skeleton-cell')).toBeNull();
-    expect(screen.getByPlaceholderText(/enter a theme/i)).toHaveValue('jazz');
+    expect(screen.getByPlaceholderText(/type any theme/i)).toHaveValue('jazz');
   });
 
   it('tells the user on the page (no pop-up) and stays on the home screen when generation fails', async () => {
     generateMock.mockRejectedValue(new Error('Backend error: 500'));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
     expect(await screen.findByRole('alert')).toHaveTextContent("We couldn't make that puzzle");
     expect(window.alert).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'AI Mini Crossword' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeEnabled();
   });
 
   it('pressing Enter in the theme box generates the puzzle', async () => {
     render(<App />);
-    const input = screen.getByPlaceholderText(/enter a theme/i);
+    const input = screen.getByPlaceholderText(/type any theme/i);
     fireEvent.change(input, { target: { value: 'jazz' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(generateMock).toHaveBeenCalledWith('jazz', 5));
@@ -306,7 +336,7 @@ describe('finishing the puzzle', () => {
   it('"Back to Home" returns to the home screen', async () => {
     await startRandomPuzzle();
     fireEvent.click(screen.getByRole('button', { name: /back to home/i }));
-    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
     expect(squares()).toHaveLength(0);
   });
 
@@ -366,8 +396,8 @@ describe('daily limits', () => {
   });
 
   async function typeThemeAndGenerate(theme: string) {
-    fireEvent.change(screen.getByPlaceholderText(/enter a theme/i), { target: { value: theme } });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), { target: { value: theme } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
   }
 
   it('explains the player limit kindly, keeps the typed theme, and offers today\'s puzzle', async () => {
@@ -379,9 +409,9 @@ describe('daily limits', () => {
     expect(note).toHaveTextContent("You've made 10 new puzzles today");
     expect(note).toHaveTextContent(/New themes unlock in/);
     expect(window.alert).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText(/enter a theme/i)).toHaveValue('jazz');
+    expect(screen.getByPlaceholderText(/type any theme/i)).toHaveValue('jazz');
 
-    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
+    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle instead" }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     expect(generateMock).toHaveBeenLastCalledWith(null, 5);
   });
@@ -428,6 +458,46 @@ describe('daily limits', () => {
   it('featured themes are labelled as free', () => {
     render(<App />);
     expect(screen.getByText(/featured themes are free/i)).toBeInTheDocument();
+  });
+});
+
+describe('privacy policy', () => {
+  const goTo = (hash: string) =>
+    act(() => {
+      window.location.hash = hash;
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  it('is linked from the home screen', () => {
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '#privacy');
+  });
+
+  it('opens at #privacy, says what the app handles, and leads back to the puzzles', () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    render(<App />);
+    goTo('#privacy');
+    const page = screen.getByRole('article');
+    expect(screen.getByRole('heading', { name: 'Privacy Policy' })).toBeInTheDocument();
+    expect(page).toHaveTextContent('Your IP address');
+    expect(page).toHaveTextContent('The themes you type');
+    expect(page).toHaveTextContent('Anthropic');
+    expect(page).toHaveTextContent('Render');
+    expect(screen.queryByRole('button', { name: "Play today's puzzle" })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to the puzzles/i })).toHaveAttribute('href', '#');
+
+    goTo('');
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
+  });
+
+  it('can be opened directly from a link', () => {
+    window.location.hash = '#privacy';
+    render(<App />);
+    expect(screen.getByRole('heading', { name: 'Privacy Policy' })).toBeInTheDocument();
   });
 });
 
