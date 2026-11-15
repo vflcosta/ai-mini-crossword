@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
-import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE } from "./config";
+import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
+import { HeroCrossword } from "./components/HeroCrossword";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
@@ -295,36 +296,32 @@ export default function App() {
         {view === "home" && !loading && !showPrivacy && (
           <>
             <header className="hero">
-              <div className="hero-icon" aria-hidden>
-                🧠
-              </div>
-              <div className="hero-text">
-                <h1 className="app-title">AI Mini Crossword</h1>
-                <p className="app-tagline">Daily brain play!</p>
-                <p className="app-subtitle">
-                  Challenge your mind with daily, themed mini crosswords.
-                </p>
-              </div>
+              <h1 className="app-title">AI Mini Crossword</h1>
+              <HeroCrossword />
+              <p className="app-tagline">Daily brain play!</p>
+              <p className="app-subtitle">
+                Challenge your mind with daily, themed mini crosswords.
+              </p>
             </header>
 
             {/* 1. the fastest way to play: one tap, no decisions */}
-            <section className="panel panel-daily" aria-labelledby="daily-title">
-              <p className="eyebrow">{puzzleDateLabel()}</p>
-              <h2 className="panel-title" id="daily-title">
+            <section className="daily-card" aria-labelledby="daily-title">
+              <p className="daily-date">{puzzleDateLabel()}</p>
+              <h2 className="daily-title" id="daily-title">
                 {DAILY_LABEL}
               </h2>
-              <p className="panel-subtitle">
+              <p className="daily-text">
                 A fresh 5×5 puzzle every day, with topics from all over. Takes about 5 minutes.
               </p>
               <button type="button" className="primary-btn primary-btn-large" onClick={handleRandom}>
                 Play today's puzzle
               </button>
-              <p className="daily-caption">The same puzzle for everyone, new every day</p>
+              <p className="daily-note">The same puzzle for everyone, new every day</p>
             </section>
 
             {/* 2. for players who want a topic of their own */}
-            <section className="panel" aria-labelledby="theme-title">
-              <h2 className="panel-title" id="theme-title">
+            <section className="home-section" aria-labelledby="theme-title">
+              <h2 className="section-title" id="theme-title">
                 Or pick a theme
               </h2>
               {notice && (
@@ -360,6 +357,7 @@ export default function App() {
                       generate(label);
                     }}
                   >
+                    <span aria-hidden>{THEME_ICONS[label]}</span>
                     {label}
                   </button>
                 ))}
@@ -373,7 +371,7 @@ export default function App() {
                 <input
                   id="theme-input"
                   className="text-input"
-                  placeholder="Type any theme, e.g. volcanoes"
+                  placeholder="Type any theme"
                   value={theme}
                   maxLength={80}
                   onChange={(e) => setTheme(e.target.value)}
@@ -400,14 +398,14 @@ export default function App() {
             </section>
 
             {/* 3. for visitors who want to know more before playing */}
-            <section className="panel panel-secondary" aria-labelledby="how-title">
-              <h2 className="panel-title" id="how-title">
+            <section className="home-section" aria-labelledby="how-title">
+              <h2 className="section-title" id="how-title">
                 How it works
               </h2>
               <ol className="how-list">
                 <li>
-                  <span className="how-icon" aria-hidden>
-                    🎯
+                  <span className="how-number" aria-hidden>
+                    1
                   </span>
                   <span>
                     <strong>Pick your puzzle.</strong> Play today's mix or choose any theme you are
@@ -415,8 +413,8 @@ export default function App() {
                   </span>
                 </li>
                 <li>
-                  <span className="how-icon" aria-hidden>
-                    ✏️
+                  <span className="how-number" aria-hidden>
+                    2
                   </span>
                   <span>
                     <strong>Solve it in minutes.</strong> A 5×5 mini crossword, made fresh by AI.
@@ -424,8 +422,8 @@ export default function App() {
                   </span>
                 </li>
                 <li>
-                  <span className="how-icon" aria-hidden>
-                    💡
+                  <span className="how-number" aria-hidden>
+                    3
                   </span>
                   <span>
                     <strong>Learn something new.</strong> Every clue is a small fact, so you leave

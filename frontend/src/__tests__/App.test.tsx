@@ -526,3 +526,36 @@ describe('message helpers', () => {
     expect(n.body).toContain("You've made 10 new puzzles today. New themes unlock in 3 h 12 min.");
   });
 });
+
+describe('look and feel', () => {
+  it('the square being filled in and the rest of its word are highlighted', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.A); // PLANT across
+    const cell = (i: number) => squares()[i].parentElement as HTMLElement;
+    expect(cell(SQUARE.A).style.background).toBe('rgb(255, 210, 63)'); // selected
+    expect(cell(SQUARE.P).style.background).toBe('rgb(255, 243, 196)'); // same word
+    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(255, 255, 255)'); // other word
+
+    click(SQUARE.L);
+    click(SQUARE.L); // LEAF down
+    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(255, 243, 196)');
+    expect(cell(SQUARE.P).style.background).toBe('rgb(255, 255, 255)');
+  });
+
+  it('featured theme buttons keep their plain names for screen readers', () => {
+    render(<App />);
+    for (const name of ['History', 'Space', 'Art', 'Nature', 'Science']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('the privacy policy shows the contact address', () => {
+    window.location.hash = '#privacy';
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'aiminicrosswordpuzzle@gmail.com' })).toHaveAttribute(
+      'href',
+      'mailto:aiminicrosswordpuzzle@gmail.com'
+    );
+    window.location.hash = '';
+  });
+});

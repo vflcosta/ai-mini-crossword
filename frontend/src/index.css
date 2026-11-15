@@ -416,74 +416,243 @@ body {
   }
 }
 
-/* === home screen: tagline, daily card, theme card, how it works === */
-.app-tagline {
-  margin: 6px 0 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #7c3aed;
+/* ==========================================================================
+   LOOK AND FEEL
+   Ink on paper with a highlighter: dark navy "ink" for text, black squares
+   and the daily card; highlighter yellow for the one thing to tap next and
+   for the square being filled in. Fredoka (bundled, no outside requests)
+   for headings and letters.
+   ========================================================================== */
+:root {
+  --ink: #16233f;
+  --ink-soft: #4a5672;
+  --paper: #ffffff;
+  --sky: #e9f1ff;
+  --highlight: #ffd23f;
+  --highlight-soft: #fff3c4;
+  --line: #c9d5ee;
+  --display: "Fredoka Variable", ui-rounded, system-ui, sans-serif;
 }
-.app-subtitle {
-  margin-bottom: 0;
+body {
+  background: var(--sky);
+  color: var(--ink);
 }
-.panel-title {
-  margin-top: 0;
+.app-bg {
+  background: var(--sky);
 }
-.eyebrow {
-  margin: 0 0 4px;
-  font-size: 0.75rem;
+h1,
+h2,
+button,
+.pill-btn {
+  font-family: var(--display);
+}
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* --- buttons --- */
+.primary-btn {
+  background: var(--highlight);
+  color: var(--ink);
+  border-radius: 14px;
+  font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #7c3aed;
+  box-shadow: 0 3px 0 #d9a900;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
-.panel-daily {
-  text-align: center;
-  border: 2px solid #ede9fe;
-}
-.panel-daily .panel-title {
-  font-size: 1.3rem;
+.primary-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 #d9a900;
 }
 .primary-btn-large {
-  padding: 15px 14px;
-  font-size: 1rem;
+  padding: 16px 14px;
+  font-size: 1.1rem;
 }
-.panel:not(.panel-secondary) .pill-row {
-  justify-content: center;
+.secondary-btn {
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+.link-btn {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+/* --- home: hero --- */
+.hero {
+  gap: 0;
+  margin: 4px 0 20px;
+}
+.app-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0 0 14px;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 46px);
+  grid-auto-rows: 46px;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+.hero-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font-family: var(--display);
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+.hero-cell-across {
+  background: var(--highlight);
+}
+.hero-cell-empty {
+  visibility: hidden;
+}
+.hero-cell-number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.hero-letter {
+  animation: hero-type 0.22s ease-out both;
+}
+@keyframes hero-type {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.app-tagline {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.app-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.98rem;
+  color: var(--ink-soft);
+  max-width: 300px;
+}
+
+/* --- home: today's puzzle (the one loud block on the page) --- */
+.daily-card {
+  background: var(--ink);
+  color: #fff;
+  border-radius: 20px;
+  padding: 20px 18px 16px;
+  text-align: center;
+  margin-bottom: 28px;
+}
+.daily-date {
+  margin: 0 0 2px;
+  font-size: 0.85rem;
+  color: var(--highlight);
+  font-weight: 600;
+}
+.daily-title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+.daily-text {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #d5def2;
+}
+.daily-note {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: #aebbdb;
+}
+
+/* --- home: themes and how it works sit on the page, not in cards --- */
+.home-section {
+  margin-bottom: 28px;
+}
+.section-title {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.home-section .pill-row {
+  gap: 8px;
 }
 .pill-btn {
-  padding: 10px 16px; /* comfortable tap target */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.pill-btn:active {
+  background: var(--highlight);
+}
+.home-section .daily-caption {
+  text-align: left;
+  margin-top: 10px;
+  color: var(--ink-soft);
 }
 .field-label {
   display: block;
-  margin: 18px 0 8px;
-  font-size: 0.9rem;
+  margin: 20px 0 8px;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 .theme-row {
   display: flex;
-  flex-direction: column;
   gap: 8px;
 }
 .theme-row .text-input {
+  flex: 1;
+  min-width: 0;
   margin-bottom: 0;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
   font-size: 1rem; /* 16px: stops phones zooming in on focus */
+  color: var(--ink);
+}
+.theme-row .text-input:focus {
+  outline: none;
+  border-color: var(--ink);
 }
 .theme-btn {
+  width: auto;
   margin-top: 0;
-  font-weight: 600;
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-  color: #4c1d95;
+  padding: 12px 16px;
+  white-space: nowrap;
+  background: var(--paper);
 }
 .theme-btn:disabled {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #6b7280;
+  border-color: var(--line);
+  color: #8792ab;
   cursor: not-allowed;
 }
-#theme-title {
-  margin-bottom: 12px;
+.limit-hint {
+  text-align: left;
+  color: var(--ink-soft);
 }
 .how-list {
   list-style: none;
@@ -491,27 +660,99 @@ body {
   padding: 0;
   display: grid;
   gap: 14px;
-  text-align: left;
 }
 .how-list li {
   display: flex;
   gap: 12px;
-  font-size: 0.9rem;
+  align-items: flex-start;
+  font-size: 0.95rem;
   line-height: 1.45;
-  color: #374151;
+  color: var(--ink-soft);
 }
-.how-icon {
-  font-size: 1.3rem;
-  line-height: 1.2;
+.how-list strong {
+  color: var(--ink);
+}
+/* the step numbers are drawn as numbered crossword squares */
+.how-number {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--ink);
 }
 .site-footer {
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   padding: 4px 0 8px;
 }
 .site-footer a,
 .legal a {
-  color: #6b7280;
+  color: var(--ink-soft);
+}
+
+/* --- notices --- */
+.notice-limit {
+  background: var(--highlight-soft);
+  border: 2px solid var(--highlight);
+}
+.notice-action {
+  background: var(--ink);
+  font-family: var(--display);
+}
+
+/* --- playing --- */
+.timer-box {
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+}
+.clue-card,
+.panel {
+  box-shadow: none;
+  border: 2px solid var(--line);
+}
+.clue-pill {
+  background: var(--highlight);
+  color: var(--ink);
+}
+.clue-title {
+  font-size: 1.1rem;
+}
+.reveal-btn {
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}
+.modal {
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+}
+.loader-subtitle {
+  color: var(--ink-soft);
+}
+.skeleton-grid {
+  background: var(--line);
+}
+
+@media (max-width: 360px) {
+  .theme-row {
+    flex-direction: column;
+  }
+  .theme-btn {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-letter {
+    animation: none;
+  }
+  .primary-btn {
+    transition: none;
+  }
 }
 
 /* === privacy policy page === */
@@ -547,4 +788,15 @@ body {
 }
 .legal li {
   margin-bottom: 8px;
+}
+
+/* Previous / Next sit side by side under the clue */
+.clue-nav {
+  display: flex;
+  gap: 10px;
+}
+.clue-nav .secondary-btn.small {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
 }
