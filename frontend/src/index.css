@@ -418,19 +418,22 @@ body {
 
 /* ==========================================================================
    LOOK AND FEEL
-   Ink on paper with a highlighter: dark navy "ink" for text, black squares
-   and the daily card; highlighter yellow for the one thing to tap next and
-   for the square being filled in. Fredoka (bundled, no outside requests)
-   for headings and letters.
+   Purple is the app's colour: a deep violet for the daily card, a bright
+   violet for the one thing to tap next, and soft lavender for the page and
+   for the word being filled in. Dark indigo "ink" for text and black
+   squares. Fredoka (bundled, no outside requests) for headings and letters.
    ========================================================================== */
 :root {
-  --ink: #16233f;
-  --ink-soft: #4a5672;
+  --ink: #1e1b4b;
+  --ink-soft: #55517a;
   --paper: #ffffff;
-  --sky: #e9f1ff;
-  --highlight: #ffd23f;
-  --highlight-soft: #fff3c4;
-  --line: #c9d5ee;
+  --sky: #f5f3ff;
+  --accent: #7c3aed;
+  --accent-dark: #5b21b6;
+  --accent-deep: #4c1d95;
+  --highlight: #c4b5fd;
+  --highlight-soft: #ede9fe;
+  --line: #ddd6fe;
   --display: "Fredoka Variable", ui-rounded, system-ui, sans-serif;
 }
 body {
@@ -453,17 +456,17 @@ button,
 
 /* --- buttons --- */
 .primary-btn {
-  background: var(--highlight);
-  color: var(--ink);
+  background: var(--accent);
+  color: #fff;
   border-radius: 14px;
   font-size: 1rem;
   font-weight: 600;
-  box-shadow: 0 3px 0 #d9a900;
+  box-shadow: 0 3px 0 var(--accent-dark);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 .primary-btn:active {
   transform: translateY(3px);
-  box-shadow: 0 0 0 #d9a900;
+  box-shadow: 0 0 0 var(--accent-dark);
 }
 .primary-btn-large {
   padding: 16px 14px;
@@ -509,7 +512,8 @@ button,
   font-weight: 600;
 }
 .hero-cell-across {
-  background: var(--highlight);
+  background: var(--accent);
+  color: #fff;
 }
 .hero-cell-empty {
   visibility: hidden;
@@ -551,7 +555,7 @@ button,
 
 /* --- home: today's puzzle (the one loud block on the page) --- */
 .daily-card {
-  background: var(--ink);
+  background: var(--accent-deep);
   color: #fff;
   border-radius: 20px;
   padding: 20px 18px 16px;
@@ -564,6 +568,15 @@ button,
   color: var(--highlight);
   font-weight: 600;
 }
+/* on the purple card the button turns white so it stays the loudest thing */
+.daily-card .primary-btn {
+  background: #fff;
+  color: var(--accent-deep);
+  box-shadow: 0 3px 0 var(--highlight);
+}
+.daily-card .primary-btn:active {
+  box-shadow: 0 0 0 var(--highlight);
+}
 .daily-title {
   margin: 0 0 6px;
   font-size: 1.45rem;
@@ -573,12 +586,12 @@ button,
   margin: 0 0 16px;
   font-size: 0.95rem;
   line-height: 1.45;
-  color: #d5def2;
+  color: #e4dcfb;
 }
 .daily-note {
   margin: 12px 0 0;
   font-size: 0.8rem;
-  color: #aebbdb;
+  color: #c9bdf0;
 }
 
 /* --- home: themes and how it works sit on the page, not in cards --- */
@@ -606,7 +619,7 @@ button,
   font-weight: 500;
 }
 .pill-btn:active {
-  background: var(--highlight);
+  background: var(--highlight-soft);
 }
 .home-section .daily-caption {
   text-align: left;
@@ -647,7 +660,7 @@ button,
 }
 .theme-btn:disabled {
   border-color: var(--line);
-  color: #8792ab;
+  color: #8f8aab;
   cursor: not-allowed;
 }
 .limit-hint {
@@ -702,7 +715,7 @@ button,
   border: 2px solid var(--highlight);
 }
 .notice-action {
-  background: var(--ink);
+  background: var(--accent);
   font-family: var(--display);
 }
 
@@ -717,8 +730,8 @@ button,
   border: 2px solid var(--line);
 }
 .clue-pill {
-  background: var(--highlight);
-  color: var(--ink);
+  background: var(--highlight-soft);
+  color: var(--accent-deep);
 }
 .clue-title {
   font-size: 1.1rem;

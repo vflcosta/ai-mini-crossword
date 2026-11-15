@@ -532,13 +532,13 @@ describe('look and feel', () => {
     await startRandomPuzzle();
     click(SQUARE.A); // PLANT across
     const cell = (i: number) => squares()[i].parentElement as HTMLElement;
-    expect(cell(SQUARE.A).style.background).toBe('rgb(255, 210, 63)'); // selected
-    expect(cell(SQUARE.P).style.background).toBe('rgb(255, 243, 196)'); // same word
+    expect(cell(SQUARE.A).style.background).toBe('rgb(196, 181, 253)'); // selected
+    expect(cell(SQUARE.P).style.background).toBe('rgb(237, 233, 254)'); // same word
     expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(255, 255, 255)'); // other word
 
     click(SQUARE.L);
     click(SQUARE.L); // LEAF down
-    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(255, 243, 196)');
+    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(237, 233, 254)');
     expect(cell(SQUARE.P).style.background).toBe('rgb(255, 255, 255)');
   });
 

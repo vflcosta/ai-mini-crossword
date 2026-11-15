@@ -147,10 +147,10 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
   return (
     <div
       style={{
-        background: "#16233f",
+        background: "#1e1b4b",
         padding: 4,
         borderRadius: 10,
-        border: "3px solid #16233f",
+        border: "3px solid #1e1b4b",
         display: "inline-block",
       }}
     >
@@ -179,8 +179,8 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                   style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    background: "#16233f",
-                    border: "1px solid #16233f",
+                    background: "#1e1b4b",
+                    border: "1px solid #1e1b4b",
                   }}
                 ></div>
               );
@@ -193,12 +193,12 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                 style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    border: "1px solid #16233f",
+                    border: "1px solid #1e1b4b",
                     position: "relative",
                     background: isSelected
-                      ? "#ffd23f"
+                      ? "#c4b5fd"
                       : activeWord.has(`${rIdx}-${cIdx}`)
-                      ? "#fff3c4"
+                      ? "#ede9fe"
                       : "#fff",
                 }}
               >
@@ -232,7 +232,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     fontSize: 22,
                     fontWeight: 600,
                     fontFamily: "inherit",
-                    color: "#16233f",
+                    color: "#1e1b4b",
                     padding: 0,
                     border: "none",
                     outline: "none",
