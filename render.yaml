@@ -6,7 +6,7 @@ services:
   - type: web
     name: ai-mini-crossword-api
     runtime: python
-    plan: free          # sleeps after 15 idle minutes; switch to "starter" to keep it awake
+    plan: starter       # always on ($7/month); "free" sleeps after 15 idle minutes
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT

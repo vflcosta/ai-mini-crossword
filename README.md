@@ -263,8 +263,8 @@ The word list comes from SCOWL (see `backend/data/WORDS_LICENSE.txt`).
 
 ## Going live (Render)
 
-`render.yaml` describes the whole setup: a free web service for the backend and
-a free static site for the website.
+`render.yaml` describes the whole setup: a web service for the backend (Starter
+size, $7/month) and a free static site for the website.
 
 1. Create an account at [render.com](https://render.com) and connect GitHub.
 2. Choose **New > Blueprint** and pick this repository.
@@ -273,9 +273,11 @@ a free static site for the website.
 
 Every push to `main` then deploys automatically.
 
-On the free plan the backend sleeps after 15 minutes without visitors, and the
-next puzzle takes about a minute while it wakes up. Changing `plan: free` to
-`plan: starter` in `render.yaml` keeps it awake.
+The backend runs on Render's Starter size so it is always awake. On the free
+size (`plan: free` in `render.yaml`) it sleeps after 15 minutes without
+visitors, and the next puzzle takes about a minute while it wakes up. Change the
+size in `render.yaml`, not in the Render dashboard: the file is in charge, and a
+dashboard change can be undone by the next deploy.
 
 
 ## iPhone app
