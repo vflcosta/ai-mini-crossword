@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
 import { HeroCrossword } from "./components/HeroCrossword";
 import { ClueLists } from "./components/ClueLists";
-import { useIsDesktop } from "./hooks";
+import { useIsDesktop, useKeyboardInset } from "./hooks";
+import { TypingClueBar } from "./components/TypingClueBar";
 import { describePuzzle, track, type PuzzleType } from "./analytics";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
@@ -81,6 +82,21 @@ export default function App() {
   const [loadingLabel, setLoadingLabel] = useState("");
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
+  const keyboardInset = useKeyboardInset();
+  // true while the cursor is in the grid (on a phone: while the keyboard is open)
+  const [typing, setTyping] = useState(false);
+  const stopTyping = useRef<number | undefined>(undefined);
+  const handleGridFocus = () => {
+    window.clearTimeout(stopTyping.current);
+    setTyping(true);
+  };
+  // the cursor hops from square to square, so wait a moment before deciding
+  // the player has really stopped typing
+  const handleGridBlur = () => {
+    window.clearTimeout(stopTyping.current);
+    stopTyping.current = window.setTimeout(() => setTyping(false), 200);
+  };
+  useEffect(() => () => window.clearTimeout(stopTyping.current), []);
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
   const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
@@ -169,6 +185,9 @@ export default function App() {
       setPuzzleType(kind.puzzle_type);
       track({ name: "puzzle_started", ...kind, cached: payload.meta?.cached });
       startGame(cw, label);
+      // the puzzle was made, so the theme box is empty again for the next idea
+      // (after a failure or a reached limit the typed theme is kept)
+      setTheme("");
     } catch (err) {
       if (err instanceof LimitReachedError) {
         if (err.code === "player_limit") setNewPuzzlesLeft(0);
@@ -252,6 +271,26 @@ export default function App() {
     });
   };
 
+  // Where the cursor goes when the player moves to a clue: its first empty
+  // square, so letters already filled in by crossing words are not in the way
+  // (or its first square when the whole word is filled).
+  const goToClue = (clue: Clue) => {
+    const dr = clue.direction === "down" ? 1 : 0;
+    const dc = clue.direction === "down" ? 0 : 1;
+    let target = { row: clue.row, col: clue.col };
+    for (let i = 0; i < clue.answer.length; i++) {
+      const row = clue.row + dr * i;
+      const col = clue.col + dc * i;
+      if (!userAnswers[row]?.[col]) {
+        target = { row, col };
+        break;
+      }
+    }
+    setCurrentClue(clue);
+    setCurrentDirection(clue.direction);
+    setSelectedCell(target);
+  };
+
   const handlePrevClue = () => {
     if (!currentClue) return;
     const all = getAllClues();
@@ -260,17 +299,11 @@ export default function App() {
     );
     if (i > 0) {
       const prev = all[i - 1];
-      setCurrentClue(prev);
-      setCurrentDirection(prev.direction);
-      setSelectedCell({ row: prev.row, col: prev.col });
+      goToClue(prev);
     }
   };
 
-  const handleSelectClue = (clue: Clue) => {
-    setCurrentClue(clue);
-    setCurrentDirection(clue.direction);
-    setSelectedCell({ row: clue.row, col: clue.col });
-  };
+  const handleSelectClue = (clue: Clue) => goToClue(clue);
 
   const handleNextClue = () => {
     if (!currentClue) return;
@@ -280,13 +313,12 @@ export default function App() {
     );
     if (i < all.length - 1) {
       const nxt = all[i + 1];
-      setCurrentClue(nxt);
-      setCurrentDirection(nxt.direction);
-      setSelectedCell({ row: nxt.row, col: nxt.col });
+      goToClue(nxt);
     }
   };
 
   const handleBackHome = () => {
+    setTyping(false);
     setView("home");
     setIsTimerRunning(false);
     setShowCompletion(false);
@@ -486,7 +518,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="grid-wrapper">
+            <div className="grid-wrapper" onFocus={handleGridFocus} onBlur={handleGridBlur}>
               <CrosswordGrid
                 grid={currentCrossword.grid}
                 userAnswers={userAnswers}
@@ -555,6 +587,21 @@ export default function App() {
               />
             )}
             </div>
+
+            {!isDesktop && typing && currentClue && !showCompletion && (
+              <>
+                {/* room to scroll, so the bar never hides the end of the page */}
+                <div className="typing-bar-spacer" style={{ height: keyboardInset + 72 }} />
+                <TypingClueBar
+                  clue={currentClue}
+                  revealed={revealedClues.has(clueKey(currentClue))}
+                  keyboardInset={keyboardInset}
+                  onPrev={handlePrevClue}
+                  onNext={handleNextClue}
+                  onReveal={revealClue}
+                />
+              </>
+            )}
 
             {showCompletion && (
               <div className="modal-backdrop" onClick={() => setShowCompletion(false)}>

@@ -102,10 +102,22 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
     row: number,
     col: number
   ) => {
-    const value = e.target.value.toUpperCase().slice(-1);
+    // Typing on a square that already has a letter replaces it: for a moment
+    // the square holds both letters, and the newly typed one is kept.
+    // Crossword answers are letters only: digits, spaces and symbols are ignored.
+    const typed = e.target.value.toUpperCase();
+    const before = userAnswers[row][col] || "";
+    if (typed === "") {
+      onAnswerChange(row, col, "");
+      return;
+    }
+    const letters = typed.replace(/[^A-Z]/g, "");
+    const value =
+      typed.length > 1
+        ? (letters.replace(before, "") || (letters.length > 1 ? before : "")).slice(-1)
+        : letters;
+    if (!value) return; // nothing usable was typed: the square stays as it was
     onAnswerChange(row, col, value);
-
-    if (!value) return;
 
     if (direction === "down") {
       // filling in a down word: move to the square below, stop at the end of the word
@@ -221,7 +233,14 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     inputRefs.current[rIdx][cIdx] = el;
                   }}
                   type="text"
-                  maxLength={1}
+                  data-square
+                  // room for one extra character, so a filled square can be typed over
+                  maxLength={2}
+                  // one letter per square: no word suggestions, no auto-correct
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   value={userAnswers[rIdx][cIdx] || ""}
                   onChange={(e) => handleChange(e, rIdx, cIdx)}
                   onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}

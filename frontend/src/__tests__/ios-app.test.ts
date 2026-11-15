@@ -41,6 +41,11 @@ describe('iPhone app setup', () => {
     );
   });
 
+  it('the keyboard helper is installed and packed into the app', () => {
+    expect(JSON.parse(read('package.json')).dependencies).toHaveProperty('@capacitor/keyboard');
+    expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorKeyboard');
+  });
+
   it('the page fills the whole iPhone screen and stays clear of the notch', () => {
     expect(read('index.html')).toContain('viewport-fit=cover');
     expect(read('src/index.css')).toContain('env(safe-area-inset-top)');

@@ -991,3 +991,82 @@ button,
     height: 72px;
   }
 }
+
+/* ==========================================================================
+   CLUE BAR ABOVE THE KEYBOARD (phones, while typing)
+   ========================================================================== */
+.typing-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+  border-top: 2px solid var(--line);
+  box-shadow: 0 -6px 16px rgba(30, 27, 75, 0.08);
+}
+/* no keyboard on screen (e.g. a hardware keyboard): stay clear of the home bar */
+.typing-bar.at-screen-bottom {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+/* in the app the page already ends at the keyboard, so no extra room is needed */
+body.keyboard-open .typing-bar.at-screen-bottom {
+  padding-bottom: 8px;
+}
+.typing-bar-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--highlight-soft);
+  color: var(--accent-deep);
+  font-family: var(--display);
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.typing-bar-btn:active {
+  background: var(--highlight);
+}
+.typing-bar-reveal {
+  background: transparent;
+  font-size: 1.25rem;
+}
+.typing-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.typing-bar-meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+/* a revealed answer must be impossible to miss */
+.typing-bar-answer {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: var(--highlight);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+.typing-bar-clue {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

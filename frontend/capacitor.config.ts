@@ -12,6 +12,10 @@ const config: CapacitorConfig = {
   appName: "AI Mini Crossword",
   webDir: "build", // where `npm run build` puts the finished game
   backgroundColor: "#f5f3ff", // the app's lavender, shown while the game loads
+  plugins: {
+    // when the keyboard opens, the page shrinks to the space above it
+    Keyboard: { resize: "native" },
+  },
 };
 
 export default config;
