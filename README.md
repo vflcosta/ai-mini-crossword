@@ -318,7 +318,7 @@ Things to know:
 
 **Valentina Lopes da Costa**
 Product-minded creator passionate about blending AI, design, and user experience.
-[LinkedIn](https://www.linkedin.com/in/valentinahelloworld/) • [GitHub](https://github.com/valentinaflcosta)
+[LinkedIn](https://www.linkedin.com/in/valentinahelloworld/) • [GitHub](https://github.com/vflcosta)
 
 
 ## License
