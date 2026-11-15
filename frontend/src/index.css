@@ -1048,6 +1048,18 @@ body.keyboard-open .typing-bar.at-screen-bottom {
   font-weight: 600;
   color: var(--accent);
 }
+/* a revealed answer must be impossible to miss */
+.typing-bar-answer {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: var(--highlight);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
 .typing-bar-clue {
   font-size: 0.95rem;
   font-weight: 600;

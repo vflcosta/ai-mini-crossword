@@ -44,7 +44,12 @@ export const TypingClueBar: React.FC<TypingClueBarProps> = ({
     </button>
     <div className="typing-bar-text">
       <span className="typing-bar-meta">
-        {clue.number} {clue.direction} · {revealed ? clue.answer : `${clue.answer.length} letters`}
+        {clue.number} {clue.direction} ·{" "}
+        {revealed ? (
+          <strong className="typing-bar-answer">Answer: {clue.answer}</strong>
+        ) : (
+          `${clue.answer.length} letters`
+        )}
       </span>
       <span className="typing-bar-clue">{clue.clue}</span>
     </div>

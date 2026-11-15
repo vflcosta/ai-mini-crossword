@@ -359,6 +359,26 @@ describe('typing over letters and moving between clues', () => {
     expect(squares()[SQUARE.P]).toHaveValue('P');
   });
 
+  it('squares take letters only: digits and symbols are ignored', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, '4');
+    expect(squares()[SQUARE.P]).toHaveValue('');
+    type(SQUARE.P, '?');
+    expect(squares()[SQUARE.P]).toHaveValue('');
+    expect(squares()[SQUARE.P]).toHaveFocus(); // the cursor did not move on
+  });
+
+  it('a digit typed on a filled square leaves its letter alone', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'P');
+    click(SQUARE.P);
+    typeOver(SQUARE.P, 'P4');
+    expect(squares()[SQUARE.P]).toHaveValue('P');
+    expect(squares()[SQUARE.P]).toHaveFocus();
+  });
+
   it('moving to a clue puts the cursor on its first empty square', async () => {
     await startRandomPuzzle();
     click(SQUARE.P);
@@ -700,7 +720,7 @@ describe('clue bar above the phone keyboard', () => {
     await startRandomPuzzle();
     click(SQUARE.P);
     fireEvent.click(screen.getByRole('button', { name: 'Reveal this answer' }));
-    expect(bar()).toHaveTextContent('1 across · PLANT');
+    expect(bar()).toHaveTextContent('1 across · Answer: PLANT');
     expect(screen.queryByRole('button', { name: 'Reveal this answer' })).not.toBeInTheDocument();
     expect(screen.getByText('revealed')).toBeInTheDocument();
   });
