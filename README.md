@@ -18,7 +18,7 @@ today's puzzle, tap a featured theme, or type any topic you are curious about.
 * **Made for phones and desktop** – one column on phones, grid plus full clue lists on wide screens
 * **Daily limits** – each puzzle is made once a day and shared, which keeps the AI cost low
 * **Private by design** – no accounts, no cookies, and the themes players type are never put in the statistics
-* **iPhone app** – the same game packed for the App Store (in progress)
+* **Phone apps** – the same game packed for the App Store and Google Play (in progress)
 * **Tested** – every change must pass the automated tests before it is merged
 
 
@@ -113,7 +113,7 @@ where `code` is `player_limit` or `daily_capacity`.
 | Website | React, TypeScript, Vite |
 | Server | Python 3.10+, FastAPI, Uvicorn |
 | AI model | Claude Haiku 5.5 (Anthropic) |
-| iPhone app | Capacitor 8 |
+| Phone apps | Capacitor 8 (iPhone and Android) |
 | Statistics | PostHog (cookieless, EU) |
 | Hosting | Render |
 | Tests | pytest, Vitest, GitHub Actions |
@@ -176,6 +176,8 @@ ai-mini-crossword/
 │   │   ├── config.ts            # settings
 │   │   └── __tests__/
 │   ├── ios/                     # the iPhone app (Xcode project)
+│   ├── android/                 # the Android app (Android Studio project)
+│   ├── assets/                  # source images for the app icons
 │   └── capacitor.config.ts
 ├── scripts/test-all.sh          # runs every check
 ├── .githooks/pre-push           # runs the checks before every push
@@ -280,11 +282,15 @@ size in `render.yaml`, not in the Render dashboard: the file is in charge, and a
 dashboard change can be undone by the next deploy.
 
 
-## iPhone app
+## Phone apps (iPhone and Android)
 
-The iPhone app is the same game packed into an app with [Capacitor](https://capacitorjs.com).
-The app project lives in `frontend/ios` and is opened with Xcode (needs a Mac,
-Xcode 26 or newer, and Node 22 or newer).
+The phone apps are the same game packed into an app with
+[Capacitor](https://capacitorjs.com). Both talk to the live backend, whose
+address is in `frontend/.env.app`. You need Node 22 or newer.
+
+### iPhone
+
+The Xcode project lives in `frontend/ios` (needs a Mac and Xcode 26 or newer).
 
 ```
 cd frontend
@@ -294,23 +300,40 @@ npm run ios
 
 `npm run ios` rebuilds the game for the app, copies it into the Xcode project
 and opens Xcode. Run it again after every change to the game, then press the
-play button in Xcode to try it on a simulator or your iPhone.
+play button in Xcode. Open the project only this way, not the whole folder.
 
-Things to know:
+### Android
 
-- The app talks to the live backend. Its address is in `frontend/.env.ios`;
-  change it there if the backend moves.
-- The backend accepts the app automatically (`APP_ORIGINS` in `backend/main.py`).
-- The app's permanent identity (`appId` in `frontend/capacitor.config.ts`, the
-  same value as the Bundle Identifier in Xcode) cannot be changed after the
-  first upload to Apple.
-- For each new App Store upload, raise the version or build number in Xcode
-  (App target, General tab).
-- Statistics mark every event with `platform`: `web` or `ios`.
+The Android Studio project lives in `frontend/android` (needs Android Studio).
+
+```
+cd frontend
+npm install
+npm run android
+```
+
+`npm run android` does the same for Android and opens Android Studio. Press the
+green play button to try it on the emulator or a phone. For Google Play, build
+a signed app bundle in Android Studio (**Build > Generate Signed App Bundle**).
+The signing key it creates must be kept safe and never added to git (the
+`.gitignore` blocks it): every future update has to be signed with it.
+
+### Things to know
+
+- The backend accepts both apps automatically (`APP_ORIGINS` in `backend/main.py`).
+- The app's permanent identity, `com.aiminicrossword.app` (`appId` in
+  `frontend/capacitor.config.ts`), cannot be changed after the first upload to
+  either store.
+- For each new store upload, raise the version or build number (Xcode: App
+  target, General tab; Android: `versionCode` and `versionName` in
+  `frontend/android/app/build.gradle`).
+- App icons and launch screens are made from the images in `frontend/assets`
+  (`npx @capacitor/assets generate`).
+- Statistics mark every event with `platform`: `web`, `ios` or `android`.
 
 ## Next steps
 
-* Release the iPhone app in the App Store, then Google Play
+* Release the apps in the App Store and Google Play
 * Difficulty levels (easy, medium, hard)
 * Player accounts that remember how many days in a row you have played
 * Keep today's puzzles and the limit counters when the server restarts
