@@ -364,3 +364,7 @@ body {
   font-size: 0.9rem;
   color: #4b5563;
 }
+/* breathing room between the "featured themes" caption and the theme buttons */
+.panel.panel-secondary .pill-row {
+  margin-top: 14px;
+}

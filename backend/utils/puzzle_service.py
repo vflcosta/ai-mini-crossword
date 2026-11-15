@@ -26,7 +26,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Callable, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-FEATURED_THEMES = ("Coffee", "Space", "Art", "Nature", "Science")
+FEATURED_THEMES = ("History", "Space", "Art", "Nature", "Science")
 
 
 class LimitReached(Exception):

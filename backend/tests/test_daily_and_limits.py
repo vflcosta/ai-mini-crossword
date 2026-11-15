@@ -194,7 +194,7 @@ def test_todays_puzzle_still_works_when_the_daily_cap_is_reached():
     s = service(global_daily_limit=1)
     s.get_puzzle("theme", 5, "a")
     s.get_puzzle(None, 5, "b")
-    s.get_puzzle("Coffee", 5, "b")
+    s.get_puzzle("History", 5, "b")
 
 
 def test_meta_tells_the_app_how_many_new_puzzles_are_left():

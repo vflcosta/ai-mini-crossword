@@ -16,4 +16,4 @@ export const GRID_SIZE = 5;
  * count against a player's daily limit; the backend lists the same themes in
  * backend/utils/puzzle_service.py (a backend test checks they match).
  */
-export const FEATURED_THEMES = ["Coffee", "Space", "Art", "Nature", "Science"];
+export const FEATURED_THEMES = ["History", "Space", "Art", "Nature", "Science"];

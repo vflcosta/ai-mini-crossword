@@ -290,7 +290,7 @@ export default function App() {
             <section className="panel">
               <h2 className="panel-title">Choose Your Challenge</h2>
               <p className="panel-subtitle">
-                Enter a theme like "coffee", "space", "art", "nature", or "science" – or surprise
+                Enter a theme like "history", "space", "art", "nature", or "science" – or surprise
                 yourself!
               </p>
               {notice && (

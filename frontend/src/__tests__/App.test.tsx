@@ -112,12 +112,12 @@ describe('home screen', () => {
     await waitFor(() => expect(generateMock).toHaveBeenCalledWith('jazz', 5));
   });
 
-  it('tapping a theme chip like "Coffee" generates a Coffee puzzle', async () => {
+  it('tapping a theme chip like "History" generates a History puzzle', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Coffee' }));
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     expect(generateMock).toHaveBeenCalledTimes(1);
-    expect(generateMock).toHaveBeenCalledWith('Coffee', 5);
+    expect(generateMock).toHaveBeenCalledWith('History', 5);
   });
 
 
