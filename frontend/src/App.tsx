@@ -145,6 +145,9 @@ export default function App() {
     setElapsedTime(0);
     setIsTimerRunning(true);
     setRevealedClues(new Set());
+    // every puzzle starts clean: no celebration left over from the last one
+    setShowCompletion(false);
+    setCompletionTime(null);
     setView("playing");
     console.log(`Generated "${label}" crossword`);
   };
@@ -286,6 +289,7 @@ export default function App() {
   const handleBackHome = () => {
     setView("home");
     setIsTimerRunning(false);
+    setShowCompletion(false);
   };
 
   // start the same puzzle again: empty grid, timer and reveals back to zero
