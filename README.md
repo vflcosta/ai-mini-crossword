@@ -236,6 +236,13 @@ Settings (environment variables on the backend):
 | `ALLOWED_ORIGINS` | Website addresses allowed to call the backend, comma separated | local dev only |
 | `ALLOWED_ORIGIN_REGEX` | Same, as a pattern | none |
 
+Usage statistics go to PostHog (see `frontend/src/analytics.ts`): visits plus
+the events `puzzle_started`, `puzzle_completed` and `limit_reached`. They are
+cookieless, never include the theme text a player types, and are only sent
+from the live site (a production build), not during development. In PostHog,
+"Cookieless server hash mode" must be on (Settings > Project > Web analytics).
+Build with `VITE_POSTHOG_KEY=` (empty) to switch statistics off.
+
 The website reads the backend's address from `VITE_API_URL` when it is built
 (default: `http://127.0.0.1:8000`).
 

@@ -6,6 +6,7 @@ import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./conf
 import { HeroCrossword } from "./components/HeroCrossword";
 import { ClueLists } from "./components/ClueLists";
 import { useIsDesktop } from "./hooks";
+import { describePuzzle, track, type PuzzleType } from "./analytics";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
@@ -78,6 +79,7 @@ export default function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState("");
+  const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
@@ -119,6 +121,12 @@ export default function App() {
       setIsTimerRunning(false);
       setCompletionTime(elapsedTime);
       setShowCompletion(true);
+      track({
+        name: "puzzle_completed",
+        puzzle_type: puzzleType,
+        seconds: elapsedTime,
+        reveals: revealedClues.size,
+      });
     }
   }, [userAnswers, currentCrossword, isTimerRunning, elapsedTime]);
 
@@ -154,11 +162,15 @@ export default function App() {
       const payload = await generateCrossword(wanted || null, GRID_SIZE);
       if (payload.meta) setNewPuzzlesLeft(payload.meta.new_puzzles_left);
       const cw = backendToCrossword(payload, label);
+      const kind = describePuzzle(wanted);
+      setPuzzleType(kind.puzzle_type);
+      track({ name: "puzzle_started", ...kind, cached: payload.meta?.cached });
       startGame(cw, label);
     } catch (err) {
       if (err instanceof LimitReachedError) {
         if (err.code === "player_limit") setNewPuzzlesLeft(0);
         setNotice(limitNotice(err));
+        track({ name: "limit_reached", code: err.code });
       } else {
         console.error(err);
         setNotice({

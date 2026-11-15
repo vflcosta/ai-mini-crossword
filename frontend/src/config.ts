@@ -36,3 +36,13 @@ export const PUZZLE_TIMEZONE = "Europe/Zurich";
  */
 export const PRIVACY_CONTACT = "aiminicrosswordpuzzle@gmail.com";
 export const PRIVACY_LAST_UPDATED = "15 November 2026";
+
+/**
+ * Usage statistics (PostHog). The project key is meant to be public: it can
+ * only send events, not read them. Set VITE_POSTHOG_KEY to an empty value at
+ * build time to switch statistics off. See src/analytics.ts for what is sent.
+ */
+export const POSTHOG_KEY: string =
+  import.meta.env.VITE_POSTHOG_KEY ?? "phc_xBvrnbW74AtcaDWziRCw3gvKnS9TjaetE5womBUQKRJq";
+/** EU data region. Use https://us.i.posthog.com if the project is in the US region. */
+export const POSTHOG_HOST: string = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
