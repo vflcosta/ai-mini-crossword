@@ -1008,6 +1008,14 @@ button,
   border-top: 2px solid var(--line);
   box-shadow: 0 -6px 16px rgba(30, 27, 75, 0.08);
 }
+.typing-bar {
+  transition: opacity 0.12s ease-out;
+}
+.typing-bar.is-moving {
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
 /* no keyboard on screen (e.g. a hardware keyboard): stay clear of the home bar */
 .typing-bar.at-screen-bottom {
   padding-bottom: calc(8px + env(safe-area-inset-bottom));

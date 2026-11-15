@@ -6,6 +6,8 @@ interface TypingClueBarProps {
   revealed: boolean;
   /** how far the on-screen keyboard reaches up from the bottom of the page, in pixels */
   keyboardInset: number;
+  /** hidden for a moment while the page scrolls, so it does not float around */
+  hidden?: boolean;
   onPrev: () => void;
   onNext: () => void;
   onReveal: () => void;
@@ -24,12 +26,15 @@ export const TypingClueBar: React.FC<TypingClueBarProps> = ({
   clue,
   revealed,
   keyboardInset,
+  hidden = false,
   onPrev,
   onNext,
   onReveal,
 }) => (
   <div
-    className={`typing-bar${keyboardInset === 0 ? " at-screen-bottom" : ""}`}
+    className={`typing-bar${keyboardInset === 0 ? " at-screen-bottom" : ""}${
+      hidden ? " is-moving" : ""
+    }`}
     style={{ bottom: keyboardInset }}
     role="region"
     aria-label="Current clue"
