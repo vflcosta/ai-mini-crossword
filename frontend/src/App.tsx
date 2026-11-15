@@ -2,7 +2,11 @@ import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
-import { FEATURED_THEMES, GRID_SIZE } from "./config";
+import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
+import { HeroCrossword } from "./components/HeroCrossword";
+import { ClueLists } from "./components/ClueLists";
+import { useIsDesktop } from "./hooks";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
 
@@ -45,6 +49,18 @@ export function limitNotice(err: LimitReachedError, now: Date = new Date()): Not
   };
 }
 
+/** "Sunday, 15 November" for the puzzle day. */
+export function puzzleDateLabel(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: PUZZLE_TIMEZONE,
+  }).format(now);
+}
+
+const isPrivacyHash = () => window.location.hash === "#privacy";
+
 export default function App() {
   const [view, setView] = useState<"home" | "playing">("home");
   const [theme, setTheme] = useState("");
@@ -62,6 +78,18 @@ export default function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState("");
+  const isDesktop = useIsDesktop();
+
+  // the privacy policy has its own address (…/#privacy) so it can be linked to
+  const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
+  useEffect(() => {
+    const onHashChange = () => {
+      setShowPrivacy(isPrivacyHash());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   // timer
   useEffect(() => {
@@ -223,6 +251,12 @@ export default function App() {
     }
   };
 
+  const handleSelectClue = (clue: Clue) => {
+    setCurrentClue(clue);
+    setCurrentDirection(clue.direction);
+    setSelectedCell({ row: clue.row, col: clue.col });
+  };
+
   const handleNextClue = () => {
     if (!currentClue) return;
     const all = getAllClues();
@@ -266,26 +300,42 @@ export default function App() {
       <div className="app-shell">
         {loading && <PuzzleLoader label={loadingLabel} />}
 
-        {view === "home" && !loading && (
-          <>
-            <header className="hero">
-              <div className="hero-icon" aria-hidden>
-                🧠
-              </div>
-              <div className="hero-text">
-                <h1 className="app-title">AI Mini Crossword</h1>
-                <p className="app-subtitle">
-                  Daily Brain Play – Challenge your mind with themed mini crosswords!
-                </p>
-              </div>
-            </header>
+        {view === "home" && !loading && showPrivacy && <PrivacyPolicy />}
 
-            <section className="panel">
-              <h2 className="panel-title">Choose Your Challenge</h2>
-              <p className="panel-subtitle">
-                Enter a theme like "history", "space", "art", "nature", or "science" – or surprise
-                yourself!
+        {view === "home" && !loading && !showPrivacy && (
+          <div className="home-layout">
+            <div className="home-col">
+            <header className="hero">
+              <h1 className="app-title">AI Mini Crossword</h1>
+              <HeroCrossword />
+              <p className="app-tagline">Daily brain play!</p>
+              <p className="app-subtitle">
+                Challenge your mind with daily, themed mini crosswords.
               </p>
+            </header>
+            </div>
+
+            <div className="home-col home-col-actions">
+            {/* 1. the fastest way to play: one tap, no decisions */}
+            <section className="daily-card" aria-labelledby="daily-title">
+              <p className="daily-date">{puzzleDateLabel()}</p>
+              <h2 className="daily-title" id="daily-title">
+                {DAILY_LABEL}
+              </h2>
+              <p className="daily-text">
+                A fresh 5×5 puzzle every day, with topics from all over. Takes about 5 minutes.
+              </p>
+              <button type="button" className="primary-btn primary-btn-large" onClick={handleRandom}>
+                Play today's puzzle
+              </button>
+              <p className="daily-note">The same puzzle for everyone, new every day</p>
+            </section>
+
+            {/* 2. for players who want a topic of their own */}
+            <section className="home-section" aria-labelledby="theme-title">
+              <h2 className="section-title" id="theme-title">
+                Or pick a theme
+              </h2>
               {notice && (
                 <div
                   className={`notice notice-${notice.tone}`}
@@ -295,7 +345,7 @@ export default function App() {
                   <p className="notice-body">{notice.body}</p>
                   {notice.tone === "limit" && (
                     <button type="button" className="notice-action" onClick={handleRandom}>
-                      Play today's puzzle
+                      Play today's puzzle instead
                     </button>
                   )}
                   <button
@@ -308,25 +358,48 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <input
-                className="text-input"
-                placeholder="Enter a theme (optional)"
-                value={theme}
-                maxLength={80}
-                onChange={(e) => setTheme(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) handleGenerateFromTheme();
-                }}
-                disabled={loading}
-              />
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={handleGenerateFromTheme}
-                disabled={loading}
-              >
-                {loading ? "Generating..." : "Generate from Theme"}
-              </button>
+              <div className="pill-row">
+                {FEATURED_THEMES.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="pill-btn"
+                    onClick={() => {
+                      setTheme(label);
+                      generate(label);
+                    }}
+                  >
+                    <span aria-hidden>{THEME_ICONS[label]}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="daily-caption">Featured themes are free to play anytime</p>
+
+              <label className="field-label" htmlFor="theme-input">
+                Curious about something else?
+              </label>
+              <div className="theme-row">
+                <input
+                  id="theme-input"
+                  className="text-input"
+                  placeholder="Type any theme"
+                  value={theme}
+                  maxLength={80}
+                  onChange={(e) => setTheme(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && theme.trim()) handleGenerateFromTheme();
+                  }}
+                />
+                <button
+                  type="button"
+                  className="secondary-btn theme-btn"
+                  onClick={handleGenerateFromTheme}
+                  disabled={!theme.trim()}
+                >
+                  Create puzzle
+                </button>
+              </div>
               {newPuzzlesLeft !== null && newPuzzlesLeft <= 3 && (
                 <p className="limit-hint">
                   {newPuzzlesLeft === 0
@@ -334,48 +407,54 @@ export default function App() {
                     : `${newPuzzlesLeft} new ${newPuzzlesLeft === 1 ? "theme" : "themes"} left today`}
                 </p>
               )}
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={handleRandom}
-                disabled={loading}
-              >
-                🌐 {DAILY_LABEL}
-              </button>
-              <p className="daily-caption">Today's puzzle: the same for everyone, new every day</p>
             </section>
 
-            <section className="panel panel-secondary">
-              <div className="panel-icon" aria-hidden>
-                🧠
-              </div>
-              <h2 className="panel-title">Ready to Exercise Your Brain?</h2>
-              <p className="panel-subtitle">
-                Choose a theme you love or let us surprise you with a random knowledge mix. Each
-                puzzle comes with fun facts to learn something new!
-              </p>
-              <p className="daily-caption">Featured themes are free to play anytime</p>
-              <div className="pill-row">
-                {FEATURED_THEMES.map((label) => (
-                  <button
-                    key={label}
-                    className="pill-btn"
-                    disabled={loading}
-                    onClick={() => {
-                      setTheme(label);
-                      generate(label);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            </div>
+
+            {/* 3. for visitors who want to know more before playing */}
+            <section className="home-section home-how" aria-labelledby="how-title">
+              <h2 className="section-title" id="how-title">
+                How it works
+              </h2>
+              <ol className="how-list">
+                <li>
+                  <span className="how-number" aria-hidden>
+                    1
+                  </span>
+                  <span>
+                    <strong>Pick your puzzle.</strong> Play today's mix or choose any theme you are
+                    curious about.
+                  </span>
+                </li>
+                <li>
+                  <span className="how-number" aria-hidden>
+                    2
+                  </span>
+                  <span>
+                    <strong>Solve it in minutes.</strong> A 5×5 mini crossword, made fresh by AI.
+                    Stuck? Reveal an answer and keep going.
+                  </span>
+                </li>
+                <li>
+                  <span className="how-number" aria-hidden>
+                    3
+                  </span>
+                  <span>
+                    <strong>Learn something new.</strong> Every clue is a small fact, so you leave
+                    knowing a little more than when you came.
+                  </span>
+                </li>
+              </ol>
             </section>
-          </>
+
+            <footer className="site-footer">
+              <a href="#privacy">Privacy Policy</a>
+            </footer>
+          </div>
         )}
 
         {view === "playing" && currentCrossword && (
-          <div className="play-wrapper">
+          <div className="play-wrapper play-game">
             <div className="play-topbar">
               <button className="link-btn" onClick={handleBackHome}>
                 ← Back to Home
@@ -402,6 +481,7 @@ export default function App() {
               />
             </div>
 
+            <div className="play-side">
             <div className="clue-card">
               {currentClue ? (
                 <>
@@ -448,6 +528,16 @@ export default function App() {
                   <p className="clue-meta">Click on a numbered cell to see its clue</p>
                 </>
               )}
+            </div>
+            {isDesktop && (
+              <ClueLists
+                across={currentCrossword.clues.across}
+                down={currentCrossword.clues.down}
+                current={currentClue}
+                revealed={revealedClues}
+                onSelect={handleSelectClue}
+              />
+            )}
             </div>
 
             {showCompletion && (

@@ -12,7 +12,8 @@ interface CrosswordGridProps {
   onAnswerChange: (row: number, col: number, value: string) => void;
 }
 
-const CELL_SIZE = 48; // px – adjust if you want it a bit larger
+// 48px squares on phones; index.css sets --cell-size larger on wide screens
+const CELL_SIZE = "var(--cell-size, 48px)";
 
 export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
   grid,
@@ -124,13 +125,33 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
     }
   };
 
+  // the squares of the word being filled in, so it can be highlighted
+  const activeWord = new Set<string>();
+  if (selectedCell && !isBlack(selectedCell.row, selectedCell.col)) {
+    const dr = direction === "down" ? 1 : 0;
+    const dc = direction === "down" ? 0 : 1;
+    let r = selectedCell.row;
+    let c = selectedCell.col;
+    while (!isBlack(r - dr, c - dc)) {
+      r -= dr;
+      c -= dc;
+    }
+    const cells: string[] = [];
+    while (!isBlack(r, c)) {
+      cells.push(`${r}-${c}`);
+      r += dr;
+      c += dc;
+    }
+    if (cells.length > 1) cells.forEach((k) => activeWord.add(k));
+  }
+
   return (
     <div
       style={{
-        background: "#111827",
+        background: "#1e1b4b",
         padding: 4,
-        borderRadius: 8,
-        border: "3px solid #111827",
+        borderRadius: 10,
+        border: "3px solid #1e1b4b",
         display: "inline-block",
       }}
     >
@@ -159,8 +180,8 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                   style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    background: "#0f172a",
-                    border: "1px solid #1f2937",
+                    background: "#1e1b4b",
+                    border: "1px solid #1e1b4b",
                   }}
                 ></div>
               );
@@ -173,9 +194,13 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                 style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    border: "1px solid #9ca3af",
+                    border: "1px solid #1e1b4b",
                     position: "relative",
-                    background: isSelected ? "#dbeafe" : "#fff",
+                    background: isSelected
+                      ? "#c4b5fd"
+                      : activeWord.has(`${rIdx}-${cIdx}`)
+                      ? "#ede9fe"
+                      : "#fff",
                 }}
               >
                 {cell.number ? (
@@ -184,7 +209,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                       position: "absolute",
                       top: 2,
                       left: 4,
-                      fontSize: 10,
+                      fontSize: "var(--cell-number-size, 10px)",
                       lineHeight: 1,
                     }}
                   >
@@ -205,7 +230,11 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     height: "100%",
                     textAlign: "center",
                     textTransform: "uppercase",
-                    fontSize: 20,
+                    fontSize: "var(--cell-letter-size, 22px)",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    color: "#1e1b4b",
+                    padding: 0,
                     border: "none",
                     outline: "none",
                     background: "transparent",

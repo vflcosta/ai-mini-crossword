@@ -415,3 +415,576 @@ body {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   LOOK AND FEEL
+   Purple is the app's colour: a deep violet for the daily card, a bright
+   violet for the one thing to tap next, and soft lavender for the page and
+   for the word being filled in. Dark indigo "ink" for text and black
+   squares. Fredoka (bundled, no outside requests) for headings and letters.
+   ========================================================================== */
+:root {
+  --ink: #1e1b4b;
+  --ink-soft: #55517a;
+  --paper: #ffffff;
+  --sky: #f5f3ff;
+  --accent: #7c3aed;
+  --accent-dark: #5b21b6;
+  --accent-deep: #4c1d95;
+  --highlight: #c4b5fd;
+  --highlight-soft: #ede9fe;
+  --line: #ddd6fe;
+  --display: "Fredoka Variable", ui-rounded, system-ui, sans-serif;
+}
+body {
+  background: var(--sky);
+  color: var(--ink);
+}
+.app-bg {
+  background: var(--sky);
+}
+h1,
+h2,
+button,
+.pill-btn {
+  font-family: var(--display);
+}
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* --- buttons --- */
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 3px 0 var(--accent-dark);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.primary-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--accent-dark);
+}
+.primary-btn-large {
+  padding: 16px 14px;
+  font-size: 1.1rem;
+}
+.secondary-btn {
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+.link-btn {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+/* --- home: hero --- */
+.hero {
+  gap: 0;
+  margin: 4px 0 20px;
+}
+.app-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0 0 14px;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 46px);
+  grid-auto-rows: 46px;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+.hero-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font-family: var(--display);
+  font-size: 1.55rem;
+  font-weight: 600;
+}
+.hero-cell-across {
+  background: var(--accent);
+  color: #fff;
+}
+.hero-cell-empty {
+  visibility: hidden;
+}
+.hero-cell-number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.hero-letter {
+  animation: hero-type 0.22s ease-out both;
+}
+@keyframes hero-type {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.app-tagline {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.app-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.98rem;
+  color: var(--ink-soft);
+  max-width: 300px;
+}
+
+/* --- home: today's puzzle (the one loud block on the page) --- */
+.daily-card {
+  background: var(--accent-deep);
+  color: #fff;
+  border-radius: 20px;
+  padding: 20px 18px 16px;
+  text-align: center;
+  margin-bottom: 28px;
+}
+.daily-date {
+  margin: 0 0 2px;
+  font-size: 0.85rem;
+  color: var(--highlight);
+  font-weight: 600;
+}
+/* on the purple card the button turns white so it stays the loudest thing */
+.daily-card .primary-btn {
+  background: #fff;
+  color: var(--accent-deep);
+  box-shadow: 0 3px 0 var(--highlight);
+}
+.daily-card .primary-btn:active {
+  box-shadow: 0 0 0 var(--highlight);
+}
+.daily-title {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+.daily-text {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #e4dcfb;
+}
+.daily-note {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: #c9bdf0;
+}
+
+/* --- home: themes and how it works sit on the page, not in cards --- */
+.home-section {
+  margin-bottom: 28px;
+}
+.section-title {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.home-section .pill-row {
+  gap: 8px;
+}
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.pill-btn:active {
+  background: var(--highlight-soft);
+}
+.home-section .daily-caption {
+  text-align: left;
+  margin-top: 10px;
+  color: var(--ink-soft);
+}
+.field-label {
+  display: block;
+  margin: 20px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.theme-row {
+  display: flex;
+  gap: 8px;
+}
+.theme-row .text-input {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 1rem; /* 16px: stops phones zooming in on focus */
+  color: var(--ink);
+}
+.theme-row .text-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+.theme-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 12px 16px;
+  white-space: nowrap;
+  background: var(--paper);
+}
+.theme-btn:disabled {
+  border-color: var(--line);
+  color: #8f8aab;
+  cursor: not-allowed;
+}
+.limit-hint {
+  text-align: left;
+  color: var(--ink-soft);
+}
+.how-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.how-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.how-list strong {
+  color: var(--ink);
+}
+/* the step numbers are drawn as numbered crossword squares */
+.how-number {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font-family: var(--display);
+  font-weight: 600;
+  color: var(--ink);
+}
+.site-footer {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 4px 0 8px;
+}
+.site-footer a,
+.legal a {
+  color: var(--ink-soft);
+}
+
+/* --- notices --- */
+.notice-limit {
+  background: var(--highlight-soft);
+  border: 2px solid var(--highlight);
+}
+.notice-action {
+  background: var(--accent);
+  font-family: var(--display);
+}
+
+/* --- playing --- */
+.timer-box {
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+}
+.clue-card,
+.panel {
+  box-shadow: none;
+  border: 2px solid var(--line);
+}
+.clue-pill {
+  background: var(--highlight-soft);
+  color: var(--accent-deep);
+}
+.clue-title {
+  font-size: 1.1rem;
+}
+.reveal-btn {
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}
+.modal {
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+}
+.loader-subtitle {
+  color: var(--ink-soft);
+}
+.skeleton-grid {
+  background: var(--line);
+}
+
+@media (max-width: 360px) {
+  .theme-row {
+    flex-direction: column;
+  }
+  .theme-btn {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-letter {
+    animation: none;
+  }
+  .primary-btn {
+    transition: none;
+  }
+}
+
+/* === privacy policy page === */
+.legal {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #374151;
+}
+.legal .link-btn {
+  display: inline-block;
+  text-decoration: none;
+  color: #1c2340;
+  margin-bottom: 8px;
+}
+.legal-title {
+  font-size: 1.4rem;
+  margin: 4px 0 2px;
+  color: #121212;
+}
+.legal-meta {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+.legal h2 {
+  font-size: 1rem;
+  margin: 20px 0 6px;
+  color: #121212;
+}
+.legal ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.legal li {
+  margin-bottom: 8px;
+}
+
+/* Previous / Next sit side by side under the clue */
+.clue-nav {
+  display: flex;
+  gap: 10px;
+}
+.clue-nav .secondary-btn.small {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* ==========================================================================
+   LAYOUT
+   Phones: one column, in reading order (hero, today's puzzle, themes, how
+   it works). Wide screens (900px and up): two columns, so the page fills the
+   screen instead of sitting in a narrow strip.
+   ========================================================================== */
+.home-layout {
+  display: flex;
+  flex-direction: column;
+}
+/* on phones the two columns dissolve and their sections line up in order */
+.home-col {
+  display: contents;
+}
+.hero { order: 1; }
+.daily-card { order: 2; }
+.home-col-actions .home-section { order: 3; }
+.home-how { order: 4; }
+.site-footer { order: 5; }
+.play-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* the clue lists (wide screens only) */
+.clue-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.clue-list-title {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.clue-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.clue-list-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.clue-list-item:hover {
+  background: var(--highlight-soft);
+}
+.clue-list-item.is-current {
+  background: var(--highlight-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.clue-list-number {
+  flex: none;
+  min-width: 1.2em;
+  font-weight: 700;
+  color: var(--ink);
+}
+.clue-list-revealed {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    width: min(1080px, 100%);
+    padding: 48px 40px 64px;
+  }
+
+  /* --- home: intro on the left, things to tap on the right --- */
+  .home-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(380px, 440px);
+    column-gap: 72px;
+    align-items: start;
+  }
+  .home-col {
+    display: block;
+  }
+  .hero {
+    align-items: flex-start;
+    text-align: left;
+    margin: 0 0 40px;
+  }
+  .app-title {
+    font-size: 1.3rem;
+    margin-bottom: 28px;
+  }
+  .hero-grid {
+    grid-template-columns: repeat(5, 68px);
+    grid-auto-rows: 68px;
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+  .hero-cell {
+    font-size: 2.3rem;
+    border-radius: 8px;
+  }
+  .hero-cell-number {
+    font-size: 0.75rem;
+    top: 4px;
+    left: 6px;
+  }
+  .app-tagline {
+    font-size: 3rem;
+  }
+  .app-subtitle {
+    font-size: 1.2rem;
+    max-width: 420px;
+    margin-top: 10px;
+  }
+  .daily-card {
+    padding: 28px 26px 22px;
+  }
+  .daily-title {
+    font-size: 1.7rem;
+  }
+  .pill-btn:hover {
+    background: var(--highlight-soft);
+  }
+  .site-footer {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+  }
+
+  /* --- playing: grid on the left, clue and clue lists on the right --- */
+  .play-game {
+    --cell-size: 84px;
+    --cell-letter-size: 38px;
+    --cell-number-size: 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 48px;
+    row-gap: 24px;
+    align-items: start;
+  }
+  .play-game .play-topbar {
+    grid-column: 1 / -1;
+  }
+  .play-game .grid-wrapper {
+    overflow: visible;
+  }
+  .clue-title {
+    font-size: 1.3rem;
+  }
+
+  /* --- loading and privacy: comfortable reading width, centred --- */
+  .loader,
+  .legal {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .loader .skeleton-grid {
+    grid-template-columns: repeat(5, 72px) !important;
+  }
+  .loader .skeleton-cell {
+    width: 72px;
+    height: 72px;
+  }
+}
