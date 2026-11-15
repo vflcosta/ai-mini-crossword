@@ -23,6 +23,11 @@ describe('iPhone app setup', () => {
     expect(scripts['build:ios']).toBe('vite build --mode ios && cap sync ios');
   });
 
+  it('the tool that reads the app settings file is installed with the project', () => {
+    // capacitor.config.ts cannot be read without TypeScript (found on Valentina's Mac)
+    expect(JSON.parse(read('package.json')).devDependencies).toHaveProperty('typescript');
+  });
+
   it('the app packs the folder the game is built into', () => {
     expect(setting('capacitor.config.ts', 'webDir')).toBe('build');
     expect(setting('vite.config.ts', 'outDir')).toBe('build');
