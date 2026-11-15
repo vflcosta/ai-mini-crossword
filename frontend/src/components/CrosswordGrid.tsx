@@ -12,7 +12,8 @@ interface CrosswordGridProps {
   onAnswerChange: (row: number, col: number, value: string) => void;
 }
 
-const CELL_SIZE = 48; // px – adjust if you want it a bit larger
+// 48px squares on phones; index.css sets --cell-size larger on wide screens
+const CELL_SIZE = "var(--cell-size, 48px)";
 
 export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
   grid,
@@ -208,7 +209,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                       position: "absolute",
                       top: 2,
                       left: 4,
-                      fontSize: 10,
+                      fontSize: "var(--cell-number-size, 10px)",
                       lineHeight: 1,
                     }}
                   >
@@ -229,7 +230,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     height: "100%",
                     textAlign: "center",
                     textTransform: "uppercase",
-                    fontSize: 22,
+                    fontSize: "var(--cell-letter-size, 22px)",
                     fontWeight: 600,
                     fontFamily: "inherit",
                     color: "#1e1b4b",

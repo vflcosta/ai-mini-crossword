@@ -559,3 +559,56 @@ describe('look and feel', () => {
     window.location.hash = '';
   });
 });
+
+describe('desktop layout', () => {
+  const asDesktop = () =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('phones do not get the clue lists', async () => {
+    await startRandomPuzzle();
+    expect(screen.queryByRole('region', { name: 'Across clues' })).not.toBeInTheDocument();
+  });
+
+  it('wide screens list every clue next to the grid', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    const across = screen.getByRole('region', { name: 'Across clues' });
+    const down = screen.getByRole('region', { name: 'Down clues' });
+    expect(across).toHaveTextContent('It grows in a pot');
+    expect(down).toHaveTextContent('It falls in autumn');
+    expect(down).toHaveTextContent('It has a trunk');
+    expect(document.querySelectorAll('.clue-list-item')).toHaveLength(3);
+  });
+
+  it('clicking a clue in the list jumps to it in the grid', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    const item = screen.getByRole('button', { name: /It has a trunk/ });
+    fireEvent.click(item);
+    expect(item).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByText(/Down • 4 letters/)).toBeInTheDocument();
+    // typing now fills TREE downwards from its first square
+    type(SQUARE.T, 'T');
+    expect(squares()[SQUARE.R_of_TREE]).toHaveFocus();
+  });
+
+  it('the list follows the square selected in the grid and marks revealed clues', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    const item = screen.getByRole('button', { name: /It grows in a pot/ });
+    expect(item).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    expect(item).toHaveTextContent('(revealed)');
+  });
+});

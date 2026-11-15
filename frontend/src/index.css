@@ -813,3 +813,178 @@ button,
   min-width: 0;
   margin-top: 0;
 }
+
+/* ==========================================================================
+   LAYOUT
+   Phones: one column, in reading order (hero, today's puzzle, themes, how
+   it works). Wide screens (900px and up): two columns, so the page fills the
+   screen instead of sitting in a narrow strip.
+   ========================================================================== */
+.home-layout {
+  display: flex;
+  flex-direction: column;
+}
+/* on phones the two columns dissolve and their sections line up in order */
+.home-col {
+  display: contents;
+}
+.hero { order: 1; }
+.daily-card { order: 2; }
+.home-col-actions .home-section { order: 3; }
+.home-how { order: 4; }
+.site-footer { order: 5; }
+.play-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* the clue lists (wide screens only) */
+.clue-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.clue-list-title {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.clue-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.clue-list-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.clue-list-item:hover {
+  background: var(--highlight-soft);
+}
+.clue-list-item.is-current {
+  background: var(--highlight-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.clue-list-number {
+  flex: none;
+  min-width: 1.2em;
+  font-weight: 700;
+  color: var(--ink);
+}
+.clue-list-revealed {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    width: min(1080px, 100%);
+    padding: 48px 40px 64px;
+  }
+
+  /* --- home: intro on the left, things to tap on the right --- */
+  .home-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(380px, 440px);
+    column-gap: 72px;
+    align-items: start;
+  }
+  .home-col {
+    display: block;
+  }
+  .hero {
+    align-items: flex-start;
+    text-align: left;
+    margin: 0 0 40px;
+  }
+  .app-title {
+    font-size: 1.3rem;
+    margin-bottom: 28px;
+  }
+  .hero-grid {
+    grid-template-columns: repeat(5, 68px);
+    grid-auto-rows: 68px;
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+  .hero-cell {
+    font-size: 2.3rem;
+    border-radius: 8px;
+  }
+  .hero-cell-number {
+    font-size: 0.75rem;
+    top: 4px;
+    left: 6px;
+  }
+  .app-tagline {
+    font-size: 3rem;
+  }
+  .app-subtitle {
+    font-size: 1.2rem;
+    max-width: 420px;
+    margin-top: 10px;
+  }
+  .daily-card {
+    padding: 28px 26px 22px;
+  }
+  .daily-title {
+    font-size: 1.7rem;
+  }
+  .pill-btn:hover {
+    background: var(--highlight-soft);
+  }
+  .site-footer {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+  }
+
+  /* --- playing: grid on the left, clue and clue lists on the right --- */
+  .play-game {
+    --cell-size: 84px;
+    --cell-letter-size: 38px;
+    --cell-number-size: 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 48px;
+    row-gap: 24px;
+    align-items: start;
+  }
+  .play-game .play-topbar {
+    grid-column: 1 / -1;
+  }
+  .play-game .grid-wrapper {
+    overflow: visible;
+  }
+  .clue-title {
+    font-size: 1.3rem;
+  }
+
+  /* --- loading and privacy: comfortable reading width, centred --- */
+  .loader,
+  .legal {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .loader .skeleton-grid {
+    grid-template-columns: repeat(5, 72px) !important;
+  }
+  .loader .skeleton-cell {
+    width: 72px;
+    height: 72px;
+  }
+}

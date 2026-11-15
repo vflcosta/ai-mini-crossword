@@ -4,6 +4,8 @@ import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
 import { HeroCrossword } from "./components/HeroCrossword";
+import { ClueLists } from "./components/ClueLists";
+import { useIsDesktop } from "./hooks";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
@@ -76,6 +78,7 @@ export default function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState("");
+  const isDesktop = useIsDesktop();
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
   const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
@@ -248,6 +251,12 @@ export default function App() {
     }
   };
 
+  const handleSelectClue = (clue: Clue) => {
+    setCurrentClue(clue);
+    setCurrentDirection(clue.direction);
+    setSelectedCell({ row: clue.row, col: clue.col });
+  };
+
   const handleNextClue = () => {
     if (!currentClue) return;
     const all = getAllClues();
@@ -294,7 +303,8 @@ export default function App() {
         {view === "home" && !loading && showPrivacy && <PrivacyPolicy />}
 
         {view === "home" && !loading && !showPrivacy && (
-          <>
+          <div className="home-layout">
+            <div className="home-col">
             <header className="hero">
               <h1 className="app-title">AI Mini Crossword</h1>
               <HeroCrossword />
@@ -303,7 +313,9 @@ export default function App() {
                 Challenge your mind with daily, themed mini crosswords.
               </p>
             </header>
+            </div>
 
+            <div className="home-col home-col-actions">
             {/* 1. the fastest way to play: one tap, no decisions */}
             <section className="daily-card" aria-labelledby="daily-title">
               <p className="daily-date">{puzzleDateLabel()}</p>
@@ -397,8 +409,10 @@ export default function App() {
               )}
             </section>
 
+            </div>
+
             {/* 3. for visitors who want to know more before playing */}
-            <section className="home-section" aria-labelledby="how-title">
+            <section className="home-section home-how" aria-labelledby="how-title">
               <h2 className="section-title" id="how-title">
                 How it works
               </h2>
@@ -436,11 +450,11 @@ export default function App() {
             <footer className="site-footer">
               <a href="#privacy">Privacy Policy</a>
             </footer>
-          </>
+          </div>
         )}
 
         {view === "playing" && currentCrossword && (
-          <div className="play-wrapper">
+          <div className="play-wrapper play-game">
             <div className="play-topbar">
               <button className="link-btn" onClick={handleBackHome}>
                 ← Back to Home
@@ -467,6 +481,7 @@ export default function App() {
               />
             </div>
 
+            <div className="play-side">
             <div className="clue-card">
               {currentClue ? (
                 <>
@@ -513,6 +528,16 @@ export default function App() {
                   <p className="clue-meta">Click on a numbered cell to see its clue</p>
                 </>
               )}
+            </div>
+            {isDesktop && (
+              <ClueLists
+                across={currentCrossword.clues.across}
+                down={currentCrossword.clues.down}
+                current={currentClue}
+                revealed={revealedClues}
+                onSelect={handleSelectClue}
+              />
+            )}
             </div>
 
             {showCompletion && (
