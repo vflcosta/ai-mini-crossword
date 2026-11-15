@@ -37,9 +37,10 @@ export function PrivacyPolicy() {
           <strong>Usage statistics.</strong> To understand how the app is used, we count visits
           and a few game events: a puzzle was started (and whether it was today's puzzle, a
           featured theme or your own theme), a puzzle was completed (with the solving time and the
-          number of answers revealed), and the daily limit was reached. The statistics do not
-          include the theme text you type, they do not use cookies or store anything in your
-          browser, and they are not used to identify you.
+          number of answers revealed), and the daily limit was reached, each with whether it
+          happened on the website or in the iPhone app. The statistics do not include the theme
+          text you type, they do not use cookies or store anything in your browser or on your
+          phone, and they are not used to identify you.
         </li>
         <li>
           <strong>Technical logs.</strong> Our hosting provider records standard server logs, such
@@ -51,7 +52,7 @@ export function PrivacyPolicy() {
       <ul>
         <li>No accounts, and no advertising or tracking cookies.</li>
         <li>We do not sell your information.</li>
-        <li>Your answers and solving times stay in your browser and are not sent to us.</li>
+        <li>Your answers stay in your browser or on your phone and are not sent to us.</li>
       </ul>
 
       <h2>Who helps us run the app</h2>

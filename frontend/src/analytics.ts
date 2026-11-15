@@ -7,6 +7,7 @@
  *   - no automatic capture of clicks, no heatmaps, no session recordings
  *   - only the events listed in `AnalyticsEvent` are sent
  *   - the theme text a player types is NEVER sent, only the kind of puzzle
+ *   - every event says where it was played: "web" (website) or "ios" (iPhone app)
  *
  * Statistics are only collected on the live site (a production build), so
  * local development and the automated tests never send anything.
@@ -14,6 +15,7 @@
  * The PostHog library is large, so it is downloaded in the background after
  * the game has appeared; events that happen before it is ready wait in a queue.
  */
+import { Capacitor } from "@capacitor/core";
 import { FEATURED_THEMES, POSTHOG_HOST, POSTHOG_KEY } from "./config";
 
 export type PuzzleType = "daily" | "featured" | "custom";
@@ -75,7 +77,7 @@ export async function initAnalytics(
 function send(event: AnalyticsEvent): void {
   const { name, ...properties } = event;
   try {
-    client?.capture(name, properties);
+    client?.capture(name, { ...properties, platform: Capacitor.getPlatform() });
   } catch {
     // statistics must never break the game
   }

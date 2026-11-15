@@ -110,9 +110,9 @@ def test_live_website_address_comes_from_the_environment(monkeypatch):
     assert "http://localhost:3000" in origins  # local development keeps working
 
 
-def test_without_configuration_only_local_development_is_allowed(monkeypatch):
+def test_without_configuration_only_local_development_and_the_phone_app_are_allowed(monkeypatch):
     monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
-    assert main.allowed_origins() == main.LOCAL_ORIGINS
+    assert main.allowed_origins() == main.LOCAL_ORIGINS + main.APP_ORIGINS
 
 
 def test_live_website_pattern_is_allowed_and_strangers_are_not(monkeypatch):
@@ -133,6 +133,18 @@ def test_live_website_pattern_is_allowed_and_strangers_are_not(monkeypatch):
     finally:
         monkeypatch.delenv("ALLOWED_ORIGIN_REGEX")
         importlib.reload(main)
+
+
+def test_phone_app_is_allowed_by_cors():
+    # the iPhone app's pages live inside the app, which reports this address
+    def allowed(origin):
+        res = client.options("/generate-crossword", headers={
+            "Origin": origin, "Access-Control-Request-Method": "POST"})
+        return res.headers.get("access-control-allow-origin") == origin
+
+    assert allowed("capacitor://localhost")
+    assert not allowed("capacitor://evil.example.com")
+    assert not allowed("https://localhost.evil.example.com")
 
 
 def test_frontend_dev_server_is_allowed_by_cors():

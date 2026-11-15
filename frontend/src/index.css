@@ -13,6 +13,9 @@ body {
 
 /* APP SHELL */
 .app-bg {
+  /* keeps the game clear of the iPhone notch and home bar (0 in a browser) */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   min-height: 100vh;
   background: linear-gradient(180deg, #f4f6ff 0%, #fef5ff 100%);
   display: flex;
