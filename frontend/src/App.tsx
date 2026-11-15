@@ -185,6 +185,9 @@ export default function App() {
       setPuzzleType(kind.puzzle_type);
       track({ name: "puzzle_started", ...kind, cached: payload.meta?.cached });
       startGame(cw, label);
+      // the puzzle was made, so the theme box is empty again for the next idea
+      // (after a failure or a reached limit the typed theme is kept)
+      setTheme("");
     } catch (err) {
       if (err instanceof LimitReachedError) {
         if (err.code === "player_limit") setNewPuzzlesLeft(0);

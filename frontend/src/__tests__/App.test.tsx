@@ -188,6 +188,27 @@ describe('home screen', () => {
 
 });
 
+describe('theme box after a puzzle', () => {
+  const themeBox = () => screen.getByPlaceholderText('Type any theme') as HTMLInputElement;
+
+  it('is empty again when the player comes back from a puzzle about their own theme', async () => {
+    render(<App />);
+    fireEvent.change(themeBox(), { target: { value: 'volcanoes' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Home' }));
+    expect(themeBox()).toHaveValue('');
+  });
+
+  it('is empty again after a featured theme too', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Art' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Home' }));
+    expect(themeBox()).toHaveValue('');
+  });
+});
+
 describe('clues', () => {
   it('asks the player to pick a square first', async () => {
     await startRandomPuzzle();
