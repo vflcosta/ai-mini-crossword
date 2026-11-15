@@ -268,6 +268,26 @@ export default function App() {
     });
   };
 
+  // Where the cursor goes when the player moves to a clue: its first empty
+  // square, so letters already filled in by crossing words are not in the way
+  // (or its first square when the whole word is filled).
+  const goToClue = (clue: Clue) => {
+    const dr = clue.direction === "down" ? 1 : 0;
+    const dc = clue.direction === "down" ? 0 : 1;
+    let target = { row: clue.row, col: clue.col };
+    for (let i = 0; i < clue.answer.length; i++) {
+      const row = clue.row + dr * i;
+      const col = clue.col + dc * i;
+      if (!userAnswers[row]?.[col]) {
+        target = { row, col };
+        break;
+      }
+    }
+    setCurrentClue(clue);
+    setCurrentDirection(clue.direction);
+    setSelectedCell(target);
+  };
+
   const handlePrevClue = () => {
     if (!currentClue) return;
     const all = getAllClues();
@@ -276,17 +296,11 @@ export default function App() {
     );
     if (i > 0) {
       const prev = all[i - 1];
-      setCurrentClue(prev);
-      setCurrentDirection(prev.direction);
-      setSelectedCell({ row: prev.row, col: prev.col });
+      goToClue(prev);
     }
   };
 
-  const handleSelectClue = (clue: Clue) => {
-    setCurrentClue(clue);
-    setCurrentDirection(clue.direction);
-    setSelectedCell({ row: clue.row, col: clue.col });
-  };
+  const handleSelectClue = (clue: Clue) => goToClue(clue);
 
   const handleNextClue = () => {
     if (!currentClue) return;
@@ -296,9 +310,7 @@ export default function App() {
     );
     if (i < all.length - 1) {
       const nxt = all[i + 1];
-      setCurrentClue(nxt);
-      setCurrentDirection(nxt.direction);
-      setSelectedCell({ row: nxt.row, col: nxt.col });
+      goToClue(nxt);
     }
   };
 

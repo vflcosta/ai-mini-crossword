@@ -102,7 +102,12 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
     row: number,
     col: number
   ) => {
-    const value = e.target.value.toUpperCase().slice(-1);
+    // Typing on a square that already has a letter replaces it: for a moment
+    // the square holds both letters, and the newly typed one is kept.
+    const typed = e.target.value.toUpperCase();
+    const before = userAnswers[row][col] || "";
+    const value =
+      typed.length > 1 ? (typed.replace(before, "") || before).slice(-1) : typed;
     onAnswerChange(row, col, value);
 
     if (!value) return;
@@ -221,7 +226,9 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     inputRefs.current[rIdx][cIdx] = el;
                   }}
                   type="text"
-                  maxLength={1}
+                  data-square
+                  // room for one extra character, so a filled square can be typed over
+                  maxLength={2}
                   // one letter per square: no word suggestions, no auto-correct
                   autoComplete="off"
                   autoCorrect="off"

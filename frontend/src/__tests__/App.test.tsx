@@ -47,7 +47,7 @@ const SOLUTION = 'PLANT' + 'ER' + 'AE' + 'FE';
 const SQUARE = { P: 0, L: 1, A: 2, N: 3, T: 4, E_of_LEAF: 5, R_of_TREE: 6 };
 
 const squares = () =>
-  Array.from(document.querySelectorAll<HTMLInputElement>('input[maxlength="1"]'));
+  Array.from(document.querySelectorAll<HTMLInputElement>('input[data-square]'));
 const type = (index: number, letter: string) =>
   fireEvent.change(squares()[index], { target: { value: letter } });
 const click = (index: number) => fireEvent.click(squares()[index]);
@@ -304,6 +304,57 @@ describe('typing', () => {
     fireEvent.keyDown(squares()[SQUARE.E_of_LEAF], { key: 'Backspace' });
     expect(squares()[SQUARE.L]).toHaveFocus();
     expect(squares()[SQUARE.L]).toHaveValue('');
+  });
+});
+
+describe('typing over letters and moving between clues', () => {
+  // what the square briefly holds when a second letter is typed into it
+  const typeOver = (index: number, contents: string) =>
+    fireEvent.change(squares()[index], { target: { value: contents } });
+
+  it('typing on a filled square replaces its letter and moves on', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'B');
+    click(SQUARE.P);
+    typeOver(SQUARE.P, 'BP'); // new letter typed after the old one
+    expect(squares()[SQUARE.P]).toHaveValue('P');
+    expect(squares()[SQUARE.L]).toHaveFocus();
+  });
+
+  it('the new letter wins wherever the cursor was in the square', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'B');
+    typeOver(SQUARE.P, 'PB'); // new letter typed before the old one
+    expect(squares()[SQUARE.P]).toHaveValue('P');
+  });
+
+  it('typing the same letter again keeps it', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'P');
+    typeOver(SQUARE.P, 'PP');
+    expect(squares()[SQUARE.P]).toHaveValue('P');
+  });
+
+  it('moving to a clue puts the cursor on its first empty square', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'P');
+    type(SQUARE.L, 'L'); // L is also the first letter of 2 down (LEAF)
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
+    expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
+  });
+
+  it('moving to a clue that is already filled in puts the cursor on its first square', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    'PLANT'.split('').forEach((letter, i) => type(i, letter));
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' })); // 2 down
+    fireEvent.click(screen.getByRole('button', { name: '← Previous' })); // back to 1 across
+    expect(squares()[SQUARE.P]).toHaveFocus();
   });
 });
 
