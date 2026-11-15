@@ -33,9 +33,17 @@ LOCAL_ORIGINS = [
 ]
 
 
+# The phone app is not a website: its pages come from inside the app itself,
+# which the phone reports under these fixed addresses (iPhone, then Android).
+APP_ORIGINS = [
+    "capacitor://localhost",
+    "https://localhost",
+]
+
+
 def allowed_origins() -> list:
     extra = [o.strip().rstrip("/") for o in os.getenv("ALLOWED_ORIGINS", "").split(",")]
-    return LOCAL_ORIGINS + [o for o in extra if o]
+    return LOCAL_ORIGINS + APP_ORIGINS + [o for o in extra if o]
 
 
 app.add_middleware(

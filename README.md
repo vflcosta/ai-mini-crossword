@@ -266,6 +266,34 @@ next puzzle takes about a minute while it wakes up. Changing `plan: free` to
 `plan: starter` in `render.yaml` keeps it awake.
 
 
+## iPhone app
+
+The iPhone app is the same game packed into an app with [Capacitor](https://capacitorjs.com).
+The app project lives in `frontend/ios` and is opened with Xcode (needs a Mac,
+Xcode 26 or newer, and Node 22 or newer).
+
+```
+cd frontend
+npm install
+npm run ios
+```
+
+`npm run ios` rebuilds the game for the app, copies it into the Xcode project
+and opens Xcode. Run it again after every change to the game, then press the
+play button in Xcode to try it on a simulator or your iPhone.
+
+Things to know:
+
+- The app talks to the live backend. Its address is in `frontend/.env.ios`;
+  change it there if the backend moves.
+- The backend accepts the app automatically (`APP_ORIGINS` in `backend/main.py`).
+- The app's permanent identity (`appId` in `frontend/capacitor.config.ts`, the
+  same value as the Bundle Identifier in Xcode) cannot be changed after the
+  first upload to Apple.
+- For each new App Store upload, raise the version or build number in Xcode
+  (App target, General tab).
+- Statistics mark every event with `platform`: `web` or `ios`.
+
 ## Next Steps
 
 * Integrate frontend (React or Next.js)

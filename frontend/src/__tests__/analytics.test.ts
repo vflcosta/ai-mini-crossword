@@ -5,12 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const posthogMock = vi.hoisted(() => ({ init: vi.fn(), capture: vi.fn() }));
 vi.mock('posthog-js', () => ({ default: posthogMock }));
+// where the game is running: "web" in a browser, "ios" inside the iPhone app
+const platformMock = vi.hoisted(() => ({ getPlatform: vi.fn(() => 'web') }));
+vi.mock('@capacitor/core', () => ({ Capacitor: platformMock }));
 
 import { describePuzzle, initAnalytics, track } from '../analytics';
 
 beforeEach(async () => {
   posthogMock.init.mockReset();
   posthogMock.capture.mockReset();
+  platformMock.getPlatform.mockReturnValue('web');
   await initAnalytics({ enabled: false });
 });
 
@@ -53,6 +57,16 @@ describe('events', () => {
       puzzle_type: 'daily',
       seconds: 95,
       reveals: 2,
+      platform: 'web',
+    });
+  });
+
+  it('events from the iPhone app are marked as such, so app and website can be told apart', () => {
+    platformMock.getPlatform.mockReturnValue('ios');
+    track({ name: 'puzzle_started', puzzle_type: 'daily' });
+    expect(posthogMock.capture).toHaveBeenCalledWith('puzzle_started', {
+      puzzle_type: 'daily',
+      platform: 'ios',
     });
   });
 
@@ -70,7 +84,10 @@ describe('loading in the background', () => {
     track({ name: 'puzzle_started', puzzle_type: 'daily' }); // library not loaded yet
     expect(posthogMock.capture).not.toHaveBeenCalled();
     await starting;
-    expect(posthogMock.capture).toHaveBeenCalledWith('puzzle_started', { puzzle_type: 'daily' });
+    expect(posthogMock.capture).toHaveBeenCalledWith('puzzle_started', {
+      puzzle_type: 'daily',
+      platform: 'web',
+    });
   });
 
   it('the game works without statistics when the library cannot start', async () => {
