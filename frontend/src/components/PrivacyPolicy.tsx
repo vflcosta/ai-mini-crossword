@@ -4,7 +4,7 @@ import { PRIVACY_CONTACT, PRIVACY_LAST_UPDATED } from "../config";
  * The privacy policy page (opened with #privacy).
  *
  * It describes what the app does today. Update it BEFORE adding anything that
- * handles personal data differently: analytics, ads, accounts, cookies.
+ * handles personal data differently: more analytics, ads, accounts, cookies.
  */
 export function PrivacyPolicy() {
   return (
@@ -34,6 +34,14 @@ export function PrivacyPolicy() {
           information into the theme box.
         </li>
         <li>
+          <strong>Usage statistics.</strong> To understand how the app is used, we count visits
+          and a few game events: a puzzle was started (and whether it was today's puzzle, a
+          featured theme or your own theme), a puzzle was completed (with the solving time and the
+          number of answers revealed), and the daily limit was reached. The statistics do not
+          include the theme text you type, they do not use cookies or store anything in your
+          browser, and they are not used to identify you.
+        </li>
+        <li>
           <strong>Technical logs.</strong> Our hosting provider records standard server logs, such
           as IP address, time and the page requested, to keep the service running and secure.
         </li>
@@ -51,6 +59,10 @@ export function PrivacyPolicy() {
         <li>
           <strong>Anthropic</strong> provides the AI model (Claude) that writes the puzzles. It
           receives the theme text.
+        </li>
+        <li>
+          <strong>PostHog</strong> provides the usage statistics, stored in the European Union.
+          It processes your IP address briefly to count visits without cookies.
         </li>
         <li>
           <strong>Render</strong> hosts the website and the server. It processes the technical
@@ -71,8 +83,8 @@ export function PrivacyPolicy() {
 
       <h2>Changes</h2>
       <p>
-        If we change how the app handles information, for example by adding usage statistics or
-        ads, we will update this page first.
+        If we change how the app handles information, for example by adding ads, we will update
+        this page first.
       </p>
 
       <h2>Contact</h2>

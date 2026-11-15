@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App, { limitNotice, puzzleDateLabel, timeUntil } from '../App';
 import { generateCrossword, LimitReachedError } from '../api';
+import { track } from '../analytics';
 import type { BackendPayload } from '../types/api';
 
 vi.mock('../api', async (importOriginal) => ({
@@ -13,6 +14,12 @@ vi.mock('../api', async (importOriginal) => ({
   generateCrossword: vi.fn(),
 }));
 const generateMock = vi.mocked(generateCrossword);
+
+vi.mock('../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../analytics')>()),
+  track: vi.fn(),
+}));
+const trackMock = vi.mocked(track);
 
 // P L A N T      1 across: PLANT
 // # E # # R      2 down:   LEAF
@@ -53,6 +60,7 @@ async function startRandomPuzzle() {
 
 beforeEach(() => {
   generateMock.mockReset();
+  trackMock.mockReset();
   generateMock.mockResolvedValue(PUZZLE);
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -610,5 +618,86 @@ describe('desktop layout', () => {
     expect(item).toHaveAttribute('aria-current', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
     expect(item).toHaveTextContent('(revealed)');
+  });
+});
+
+describe('usage statistics', () => {
+  const fillAll = (letters: string) => letters.split('').forEach((ch, i) => type(i, ch));
+
+  it("starting today's puzzle is counted as a daily puzzle", async () => {
+    await startRandomPuzzle();
+    expect(trackMock).toHaveBeenCalledWith({ name: 'puzzle_started', puzzle_type: 'daily', cached: undefined });
+  });
+
+  it('a featured theme is counted with its name', async () => {
+    generateMock.mockResolvedValueOnce({
+      ...PUZZLE,
+      meta: { cached: true, free: true, new_puzzles_left: 10, resets_at: '2026-11-21T00:00:00+01:00' },
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(trackMock).toHaveBeenCalledWith({
+      name: 'puzzle_started',
+      puzzle_type: 'featured',
+      featured_theme: 'History',
+      cached: true,
+    });
+  });
+
+  it('a typed theme is counted as "custom" and its text is never sent', async () => {
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), {
+      target: { value: 'my grandmother Maria' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(trackMock).toHaveBeenCalledWith({ name: 'puzzle_started', puzzle_type: 'custom', cached: undefined });
+    expect(JSON.stringify(trackMock.mock.calls)).not.toContain('Maria');
+  });
+
+  it('finishing is counted once, with the time and the number of reveals', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    fillAll(SOLUTION);
+    await screen.findByText(/puzzle complete/i);
+    const completed = trackMock.mock.calls.filter(([e]) => e.name === 'puzzle_completed');
+    expect(completed).toHaveLength(1);
+    expect(completed[0][0]).toMatchObject({ puzzle_type: 'daily', reveals: 1 });
+    expect(completed[0][0]).toHaveProperty('seconds');
+  });
+
+  it('"Reset" is not counted as a new puzzle', async () => {
+    await startRandomPuzzle();
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
+    expect(trackMock.mock.calls.filter(([e]) => e.name === 'puzzle_started')).toHaveLength(1);
+  });
+
+  it('reaching the daily limit is counted, and a failed puzzle is not counted as started', async () => {
+    generateMock.mockRejectedValueOnce(
+      new LimitReachedError({
+        code: 'player_limit',
+        message: '',
+        limit: 10,
+        resets_at: '2026-11-21T00:00:00+01:00',
+        retry_after_seconds: 60,
+      })
+    );
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText(/type any theme/i), { target: { value: 'jazz' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
+    await screen.findByText("That's all your new themes for today");
+    expect(trackMock.mock.calls).toEqual([[{ name: 'limit_reached', code: 'player_limit' }]]);
+  });
+
+  it('the privacy policy describes the statistics and names the provider', () => {
+    window.location.hash = '#privacy';
+    render(<App />);
+    const page = screen.getByRole('article');
+    expect(page).toHaveTextContent('Usage statistics');
+    expect(page).toHaveTextContent(/do not include the theme text you type/);
+    expect(page).toHaveTextContent('PostHog');
+    window.location.hash = '';
   });
 });
