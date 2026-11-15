@@ -3,6 +3,7 @@ import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE } from "./config";
+import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
 
 const DAILY_LABEL = "Today's Knowledge Mix";
@@ -60,18 +61,7 @@ export default function App() {
   const [revealedClues, setRevealedClues] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
-  const [slowLoading, setSlowLoading] = useState(false);
-
-  // the free Render server sleeps when idle and needs up to a minute to wake;
-  // after a few seconds of waiting, say so instead of looking stuck
-  useEffect(() => {
-    if (!loading) {
-      setSlowLoading(false);
-      return;
-    }
-    const id = window.setTimeout(() => setSlowLoading(true), 6000);
-    return () => window.clearTimeout(id);
-  }, [loading]);
+  const [loadingLabel, setLoadingLabel] = useState("");
 
   // timer
   useEffect(() => {
@@ -131,6 +121,7 @@ export default function App() {
     const label = wanted || DAILY_LABEL;
     setNotice(null);
     try {
+      setLoadingLabel(label);
       setLoading(true);
       const payload = await generateCrossword(wanted || null, GRID_SIZE);
       if (payload.meta) setNewPuzzlesLeft(payload.meta.new_puzzles_left);
@@ -273,7 +264,9 @@ export default function App() {
   return (
     <div className="app-bg">
       <div className="app-shell">
-        {view === "home" && (
+        {loading && <PuzzleLoader label={loadingLabel} />}
+
+        {view === "home" && !loading && (
           <>
             <header className="hero">
               <div className="hero-icon" aria-hidden>
@@ -350,11 +343,6 @@ export default function App() {
                 🌐 {DAILY_LABEL}
               </button>
               <p className="daily-caption">Today's puzzle: the same for everyone, new every day</p>
-              {loading && slowLoading && (
-                <p className="loading-hint" role="status">
-                  Waking up the puzzle maker… the first puzzle can take up to a minute.
-                </p>
-              )}
             </section>
 
             <section className="panel panel-secondary">

@@ -83,15 +83,42 @@ describe('home screen', () => {
     expect(generateMock).toHaveBeenCalledWith('space', 5);
   });
 
-  it('blocks the buttons while a puzzle is being generated', async () => {
+  it('shows a loading screen with a skeleton grid while the puzzle is being made', async () => {
     let finish!: (p: BackendPayload) => void;
     generateMock.mockReturnValue(new Promise((resolve) => (finish = resolve)));
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
-    expect(await screen.findByRole('button', { name: 'Generating...' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /today's knowledge mix/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+    const loader = await screen.findByRole('status');
+    expect(loader).toHaveTextContent('Creating your History crossword…');
+    expect(loader).toHaveTextContent('This can take up to 1 minute');
+    expect(document.querySelectorAll('.skeleton-cell')).toHaveLength(25);
+    // the home screen is hidden, so nothing can be started twice
+    expect(screen.queryByRole('button', { name: 'Generate from Theme' })).not.toBeInTheDocument();
+    expect(generateMock).toHaveBeenCalledTimes(1);
+
     finish(PUZZLE);
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(document.querySelector('.skeleton-cell')).toBeNull();
+  });
+
+  it("the loading screen names today's puzzle", async () => {
+    generateMock.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      "Creating your Today's Knowledge Mix crossword…"
+    );
+  });
+
+  it('the loading screen goes away and the typed theme is kept when generation fails', async () => {
+    generateMock.mockRejectedValue(new Error('Backend error: 500'));
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText(/enter a theme/i), { target: { value: 'jazz' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate from Theme' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(document.querySelector('.skeleton-cell')).toBeNull();
+    expect(screen.getByPlaceholderText(/enter a theme/i)).toHaveValue('jazz');
   });
 
   it('tells the user on the page (no pop-up) and stays on the home screen when generation fails', async () => {
@@ -347,8 +374,8 @@ describe('daily limits', () => {
     generateMock.mockRejectedValueOnce(playerLimit);
     render(<App />);
     await typeThemeAndGenerate('jazz');
-    const note = await screen.findByRole('status');
-    expect(note).toHaveTextContent("That's all your new themes for today");
+    const note = (await screen.findByText("That's all your new themes for today")).closest('.notice')!;
+    expect(note).toHaveAttribute('role', 'status');
     expect(note).toHaveTextContent("You've made 10 new puzzles today");
     expect(note).toHaveTextContent(/New themes unlock in/);
     expect(window.alert).not.toHaveBeenCalled();
@@ -363,15 +390,14 @@ describe('daily limits', () => {
     generateMock.mockRejectedValueOnce(capacity);
     render(<App />);
     await typeThemeAndGenerate('jazz');
-    expect(await screen.findByRole('status')).toHaveTextContent('Busy day for puzzles!');
+    expect(await screen.findByText('Busy day for puzzles!')).toBeInTheDocument();
   });
 
   it('the message can be dismissed and disappears on the next try', async () => {
     generateMock.mockRejectedValueOnce(playerLimit);
     render(<App />);
     await typeThemeAndGenerate('jazz');
-    await screen.findByRole('status');
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss message' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss message' }));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -402,24 +428,6 @@ describe('daily limits', () => {
   it('featured themes are labelled as free', () => {
     render(<App />);
     expect(screen.getByText(/featured themes are free/i)).toBeInTheDocument();
-  });
-});
-
-describe('slow first puzzle', () => {
-  it('after a few seconds of waiting, explains that the server is waking up', async () => {
-    vi.useFakeTimers();
-    try {
-      generateMock.mockReturnValue(new Promise(() => {}));
-      render(<App />);
-      fireEvent.click(screen.getByRole('button', { name: /today's knowledge mix/i }));
-      expect(screen.queryByText(/waking up/i)).not.toBeInTheDocument();
-      await act(async () => {
-        vi.advanceTimersByTime(7000);
-      });
-      expect(screen.getByText(/waking up the puzzle maker/i)).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });
 
