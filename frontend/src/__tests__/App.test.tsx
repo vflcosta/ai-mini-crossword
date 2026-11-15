@@ -348,6 +348,33 @@ describe('finishing the puzzle', () => {
     expect(squares()).toHaveLength(0);
   });
 
+  it('a new puzzle after a finished one starts fresh, without the old celebration', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    await screen.findByText(/puzzle complete/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to home' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
+    expect(squares().every((s) => s.value === '')).toBe(true);
+    expect(screen.getByText('0:00')).toBeInTheDocument();
+
+    // and finishing the new puzzle celebrates again
+    fillAll(SOLUTION);
+    expect(await screen.findByText(/puzzle complete/i)).toBeInTheDocument();
+  });
+
+  it('going home with the top link after finishing also clears the celebration', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    fireEvent.click(await screen.findByRole('button', { name: 'Review' }));
+    fireEvent.click(screen.getByRole('button', { name: /← back to home/i }));
+    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
+  });
+
   it('"Reset" starts the same puzzle again without asking for a new one', async () => {
     await startRandomPuzzle();
     type(SQUARE.P, 'P');
