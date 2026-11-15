@@ -20,6 +20,17 @@ services:
         value: claude-haiku-5-5
       - key: AI_EFFORT
         value: low
+      # daily limits (see backend/utils/puzzle_service.py)
+      - key: PLAYER_DAILY_LIMIT
+        value: "10"     # new themed puzzles one player can make per day
+      - key: GLOBAL_DAILY_LIMIT
+        value: "500"    # new puzzles all players together can make per day
+      - key: PUZZLE_TIMEZONE
+        value: Europe/Zurich
+      # Render sits behind Cloudflare, which puts the visitor's real address
+      # in this header (X-Forwarded-For can be faked by the visitor)
+      - key: CLIENT_IP_HEADER
+        value: True-Client-IP
       # which websites may call the backend: this site's onrender.com address
       - key: ALLOWED_ORIGIN_REGEX
         value: https://ai-mini-crossword(-[a-z0-9]+)?\.onrender\.com

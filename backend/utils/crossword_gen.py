@@ -431,22 +431,29 @@ def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
 # ---------- public entrypoint ----------
 
 def generate_crossword(theme: Optional[str] = None, size: int = 5):
+    """
+    Returns {"grid", "clues", "fallback"}. "fallback" is True when the AI was
+    unavailable and the built-in words were used (such a puzzle should not be
+    kept and shown to everyone for the rest of the day).
+    """
     # ask for plenty of themed words: the more there are, the more fit the grid
     raw = generate_clues(theme, size, num=30)
     words_pool = raw["across"] + raw["down"]
     if not words_pool:
         return {"error": "Could not generate clues."}
+    used_fallback = raw == _fallback()
 
     # 1) newspaper-style dense grid (needs the AI for the extra clues)
-    if raw != _fallback():
+    if not used_fallback:
         dense = build_dense_crossword(words_pool, theme, size)
         if dense is not None:
             grid, final_clues = dense
-            return {"grid": grid, "clues": final_clues}
+            return {"grid": grid, "clues": final_clues, "fallback": False}
 
     # 2) simple layout: only the AI's (or the built-in) words, crossing each other
     grid, final_clues = build_crossword_from_words(words_pool, size=size)
     return {
         "grid": grid,
         "clues": final_clues,
+        "fallback": used_fallback,
     }

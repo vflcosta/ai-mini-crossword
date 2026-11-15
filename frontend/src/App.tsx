@@ -1,9 +1,49 @@
 import React, { useState, useEffect } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
-import { generateCrossword } from "./api";
-import { GRID_SIZE } from "./config";
+import { generateCrossword, LimitReachedError } from "./api";
+import { FEATURED_THEMES, GRID_SIZE } from "./config";
+import { PuzzleLoader } from "./components/PuzzleLoader";
 import { Crossword, Clue } from "./types/crossword";
+
+const DAILY_LABEL = "Today's Knowledge Mix";
+
+/** A message shown on the home screen instead of a pop-up. */
+type Notice = {
+  tone: "limit" | "error";
+  title: string;
+  body: string;
+};
+
+/** "in 3 h 12 min" / "in 25 min" until the given moment. */
+export function timeUntil(when: Date, now: Date = new Date()): string {
+  const minutes = Math.max(1, Math.ceil((when.getTime() - now.getTime()) / 60000));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `in ${m} min`;
+  return m === 0 ? `in ${h} h` : `in ${h} h ${m} min`;
+}
+
+export function limitNotice(err: LimitReachedError, now: Date = new Date()): Notice {
+  const when = timeUntil(err.resetsAt, now);
+  if (err.code === "daily_capacity") {
+    return {
+      tone: "limit",
+      title: "Busy day for puzzles!",
+      body:
+        `So many new puzzles were made today that new themes are paused. ` +
+        `They're back ${when}. Today's puzzle and the featured themes are ready to play now.`,
+    };
+  }
+  return {
+    tone: "limit",
+    title: "That's all your new themes for today",
+    body:
+      `You've made ${err.limit} new ${err.limit === 1 ? "puzzle" : "puzzles"} today. ` +
+      `New themes unlock ${when}. ` +
+      `Until then, today's puzzle and the featured themes are free to play.`,
+  };
+}
 
 export default function App() {
   const [view, setView] = useState<"home" | "playing">("home");
@@ -19,6 +59,9 @@ export default function App() {
   const [showCompletion, setShowCompletion] = useState(false);
   const [loading, setLoading] = useState(false);
   const [revealedClues, setRevealedClues] = useState<Set<string>>(new Set());
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
+  const [loadingLabel, setLoadingLabel] = useState("");
 
   // timer
   useEffect(() => {
@@ -75,15 +118,27 @@ export default function App() {
   // that has not updated yet (e.g. the theme chips).
   const generate = async (themeText: string) => {
     const wanted = themeText.trim();
-    const label = wanted || "Random Knowledge Mix";
+    const label = wanted || DAILY_LABEL;
+    setNotice(null);
     try {
+      setLoadingLabel(label);
       setLoading(true);
       const payload = await generateCrossword(wanted || null, GRID_SIZE);
+      if (payload.meta) setNewPuzzlesLeft(payload.meta.new_puzzles_left);
       const cw = backendToCrossword(payload, label);
       startGame(cw, label);
     } catch (err) {
-      console.error(err);
-      alert("Could not generate crossword.");
+      if (err instanceof LimitReachedError) {
+        if (err.code === "player_limit") setNewPuzzlesLeft(0);
+        setNotice(limitNotice(err));
+      } else {
+        console.error(err);
+        setNotice({
+          tone: "error",
+          title: "We couldn't make that puzzle",
+          body: "Something went wrong on our side. Please try again in a moment.",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -187,12 +242,12 @@ export default function App() {
     setIsTimerRunning(false);
   };
 
-  const handleReset = async () => {
-    if (theme.trim()) {
-      await handleGenerateFromTheme();
-    } else {
-      await handleRandom();
-    }
+  // start the same puzzle again: empty grid, timer and reveals back to zero
+  // (no new puzzle is requested, so it costs nothing and needs no network)
+  const handleReset = () => {
+    if (currentCrossword) startGame(currentCrossword, currentCrossword.theme);
+    setShowCompletion(false);
+    setCompletionTime(null);
   };
 
   const clueKey = (c: Clue) => `${c.number}-${c.direction}`;
@@ -209,7 +264,9 @@ export default function App() {
   return (
     <div className="app-bg">
       <div className="app-shell">
-        {view === "home" && (
+        {loading && <PuzzleLoader label={loadingLabel} />}
+
+        {view === "home" && !loading && (
           <>
             <header className="hero">
               <div className="hero-icon" aria-hidden>
@@ -226,14 +283,40 @@ export default function App() {
             <section className="panel">
               <h2 className="panel-title">Choose Your Challenge</h2>
               <p className="panel-subtitle">
-                Enter a theme like "coffee", "space", "art", "nature", or "science" – or surprise
+                Enter a theme like "history", "space", "art", "nature", or "science" – or surprise
                 yourself!
               </p>
+              {notice && (
+                <div
+                  className={`notice notice-${notice.tone}`}
+                  role={notice.tone === "error" ? "alert" : "status"}
+                >
+                  <p className="notice-title">{notice.title}</p>
+                  <p className="notice-body">{notice.body}</p>
+                  {notice.tone === "limit" && (
+                    <button type="button" className="notice-action" onClick={handleRandom}>
+                      Play today's puzzle
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="notice-close"
+                    aria-label="Dismiss message"
+                    onClick={() => setNotice(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               <input
                 className="text-input"
                 placeholder="Enter a theme (optional)"
                 value={theme}
+                maxLength={80}
                 onChange={(e) => setTheme(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) handleGenerateFromTheme();
+                }}
                 disabled={loading}
               />
               <button
@@ -244,14 +327,22 @@ export default function App() {
               >
                 {loading ? "Generating..." : "Generate from Theme"}
               </button>
+              {newPuzzlesLeft !== null && newPuzzlesLeft <= 3 && (
+                <p className="limit-hint">
+                  {newPuzzlesLeft === 0
+                    ? "No new themes left today. Themes someone already played today still work."
+                    : `${newPuzzlesLeft} new ${newPuzzlesLeft === 1 ? "theme" : "themes"} left today`}
+                </p>
+              )}
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={handleRandom}
                 disabled={loading}
               >
-                🌐 Random Knowledge Mix
+                🌐 {DAILY_LABEL}
               </button>
+              <p className="daily-caption">Today's puzzle: the same for everyone, new every day</p>
             </section>
 
             <section className="panel panel-secondary">
@@ -263,8 +354,9 @@ export default function App() {
                 Choose a theme you love or let us surprise you with a random knowledge mix. Each
                 puzzle comes with fun facts to learn something new!
               </p>
+              <p className="daily-caption">Featured themes are free to play anytime</p>
               <div className="pill-row">
-                {["Coffee", "Space", "Art", "Nature", "Science"].map((label) => (
+                {FEATURED_THEMES.map((label) => (
                   <button
                     key={label}
                     className="pill-btn"
@@ -363,6 +455,13 @@ export default function App() {
                 <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <h2>🎉 Puzzle complete!</h2>
                   <p>You solved it in {formatTime(completionTime || 0)}.</p>
+                  <p className="reveal-summary">
+                    {revealedClues.size === 0
+                      ? "🌟 No reveals – solved all on your own!"
+                      : `💡 ${revealedClues.size} ${
+                          revealedClues.size === 1 ? "answer" : "answers"
+                        } revealed`}
+                  </p>
                   <div className="modal-actions">
                     <button className="primary-btn" onClick={handleBackHome}>
                       Back to home

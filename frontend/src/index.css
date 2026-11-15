@@ -302,3 +302,116 @@ body {
   gap: 0.75rem;
   justify-content: center;
 }
+/* === notices on the home screen (limits, errors) === */
+.notice {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px 36px 12px 14px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.notice-limit {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+.notice-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.notice-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.notice-body {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.notice-action {
+  margin-top: 10px;
+  border: none;
+  border-radius: 99px;
+  padding: 6px 14px;
+  background: #111827;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.notice-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+}
+.limit-hint,
+.daily-caption {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  text-align: center;
+}
+.reveal-summary {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+/* breathing room between the "featured themes" caption and the theme buttons */
+.panel.panel-secondary .pill-row {
+  margin-top: 14px;
+}
+
+/* === loading screen: shimmering outline of the game === */
+.loader-message {
+  text-align: center;
+  padding: 8px 0 2px;
+}
+.loader-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.loader-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+.skeleton-grid {
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 6px;
+  background: #d1d5db;
+}
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-cell {
+  width: 48px;
+  height: 48px;
+}
+.skeleton-line {
+  height: 14px;
+  border-radius: 7px;
+  margin: 6px 0 12px;
+}
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+/* people who turned off animations get a still outline */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

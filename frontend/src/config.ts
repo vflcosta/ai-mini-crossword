@@ -10,3 +10,10 @@ export const API_BASE: string = (
 
 /** Puzzle size: 5x5 is the classic newspaper mini. */
 export const GRID_SIZE = 5;
+
+/**
+ * Theme buttons on the home screen. These are shared by everyone and never
+ * count against a player's daily limit; the backend lists the same themes in
+ * backend/utils/puzzle_service.py (a backend test checks they match).
+ */
+export const FEATURED_THEMES = ["History", "Space", "Art", "Nature", "Science"];

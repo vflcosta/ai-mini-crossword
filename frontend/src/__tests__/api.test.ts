@@ -2,7 +2,7 @@
  * The call from the app to the backend. `fetch` is faked, so no server is needed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchCrossword, generateCrossword } from '../api';
+import { fetchCrossword, generateCrossword, LimitReachedError } from '../api';
 
 const PAYLOAD = {
   grid: [['C', 'A', 'T'], ['#', '#', '#'], ['#', '#', '#']],
@@ -58,6 +58,43 @@ describe('generateCrossword', () => {
   it('throws a clear error when the backend answers with an error', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
     await expect(generateCrossword('space')).rejects.toThrow('Backend error: 500');
+  });
+
+  it('turns a "limit reached" answer into a LimitReachedError with the details', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      json: async () => ({
+        detail: {
+          code: 'player_limit',
+          message: "You've made all your new puzzles for today.",
+          limit: 10,
+          resets_at: '2026-11-21T00:00:00+01:00',
+          retry_after_seconds: 3600,
+        },
+      }),
+    });
+    const err = await generateCrossword('jazz').catch((e) => e);
+    expect(err).toBeInstanceOf(LimitReachedError);
+    expect(err.code).toBe('player_limit');
+    expect(err.limit).toBe(10);
+    expect(err.resetsAt.toISOString()).toBe('2026-11-20T23:00:00.000Z');
+  });
+
+  it('a 429 without details is still reported as an error', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false, status: 429, statusText: 'Too Many Requests', json: async () => { throw new Error('not json'); },
+    });
+    const err = await generateCrossword('jazz').catch((e) => e);
+    expect(err).not.toBeInstanceOf(LimitReachedError);
+    expect(err.message).toContain('429');
+  });
+
+  it('passes on the extra puzzle information from the backend', async () => {
+    const meta = { cached: true, free: false, new_puzzles_left: 4, resets_at: '2026-11-21T00:00:00+01:00' };
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ...PAYLOAD, meta }) });
+    expect((await generateCrossword('jazz')).meta).toEqual(meta);
   });
 
   it('throws when the backend cannot be reached', async () => {
