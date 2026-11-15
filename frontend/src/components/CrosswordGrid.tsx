@@ -97,6 +97,21 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
     }
   };
 
+  // On a phone, tapping a square that already has the cursor makes iPhone
+  // show its "Paste / AutoFill" menu instead of switching between across and
+  // down. For that tap the phone's own handling is skipped, and the switch is
+  // made here. A tap on any other square (or with the keyboard closed) is left
+  // to the phone, so it still moves the cursor and opens the keyboard.
+  const handleTouchEnd = (
+    e: React.TouchEvent<HTMLInputElement>,
+    row: number,
+    col: number
+  ) => {
+    if (document.activeElement !== e.currentTarget) return;
+    e.preventDefault();
+    onCellClick(row, col);
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     row: number,
@@ -244,6 +259,7 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                   value={userAnswers[rIdx][cIdx] || ""}
                   onChange={(e) => handleChange(e, rIdx, cIdx)}
                   onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
+                  onTouchEnd={(e) => handleTouchEnd(e, rIdx, cIdx)}
                   style={{
                     width: "100%",
                     height: "100%",
@@ -258,6 +274,10 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                     outline: "none",
                     background: "transparent",
                     caretColor: "transparent",
+                    // no text selection or copy/paste menus on a square
+                    WebkitTouchCallout: "none",
+                    WebkitUserSelect: "none",
+                    userSelect: "none",
                   }}
                 />
               </div>

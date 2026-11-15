@@ -359,6 +359,31 @@ describe('typing over letters and moving between clues', () => {
     expect(squares()[SQUARE.P]).toHaveValue('P');
   });
 
+  it('on a phone, tapping the square with the cursor switches across / down, without the paste menu', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.L); // L is in 1 across (PLANT) and 2 down (LEAF)
+    squares()[SQUARE.L].focus();
+    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
+    // false means the phone's own handling (which shows "Paste") was skipped
+    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(false);
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
+    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(false);
+    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
+  });
+
+  it('on a phone, tapping another square is left to the phone, so the keyboard still opens', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    squares()[SQUARE.P].focus();
+    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(true);
+    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
+  });
+
+  it('squares do not offer text selection or copy and paste', async () => {
+    await startRandomPuzzle();
+    expect(squares()[SQUARE.P].style.userSelect).toBe('none');
+  });
+
   it('squares take letters only: digits and symbols are ignored', async () => {
     await startRandomPuzzle();
     click(SQUARE.P);
