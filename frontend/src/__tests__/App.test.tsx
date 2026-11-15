@@ -766,6 +766,50 @@ describe('clue bar above the phone keyboard', () => {
     expect(bar()).toBeInTheDocument();
   });
 
+  describe('phone browsers (keyboard drawn over the page)', () => {
+    // a stand-in for Safari's description of the visible part of the page
+    function fakeSafariViewport(keyboardHeight: number) {
+      const viewport = Object.assign(new EventTarget(), {
+        height: window.innerHeight - keyboardHeight,
+        offsetTop: 0,
+      });
+      vi.stubGlobal('visualViewport', viewport);
+      return viewport;
+    }
+
+    it('sits just above the keyboard', async () => {
+      fakeSafariViewport(300);
+      await startRandomPuzzle();
+      click(SQUARE.P);
+      expect(bar()).toHaveStyle({ bottom: '300px' });
+    });
+
+    it('hides while the page scrolls, and comes back above the keyboard once it settles', async () => {
+      const viewport = fakeSafariViewport(300);
+      await startRandomPuzzle();
+      click(SQUARE.P);
+      // the player scrolls down by 120 pixels
+      viewport.offsetTop = 120;
+      act(() => {
+        viewport.dispatchEvent(new Event('scroll'));
+      });
+      expect(bar()).toHaveClass('is-moving');
+      await waitFor(() => expect(bar()).not.toHaveClass('is-moving'));
+      expect(bar()).toHaveStyle({ bottom: '180px' });
+    });
+  });
+
+  it("the iPhone app's bar does not hide while scrolling (nothing floats there)", async () => {
+    const viewport = Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0 });
+    vi.stubGlobal('visualViewport', viewport);
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    act(() => {
+      viewport.dispatchEvent(new Event('scroll'));
+    });
+    expect(bar()).not.toHaveClass('is-moving');
+  });
+
   it('wide screens do not get the bar', async () => {
     vi.stubGlobal(
       'matchMedia',

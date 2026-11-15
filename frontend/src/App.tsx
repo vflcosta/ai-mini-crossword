@@ -82,7 +82,7 @@ export default function App() {
   const [loadingLabel, setLoadingLabel] = useState("");
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
-  const keyboardInset = useKeyboardInset();
+  const { inset: keyboardInset, moving: pageMoving } = useKeyboardInset();
   // true while the cursor is in the grid (on a phone: while the keyboard is open)
   const [typing, setTyping] = useState(false);
   const stopTyping = useRef<number | undefined>(undefined);
@@ -596,6 +596,7 @@ export default function App() {
                   clue={currentClue}
                   revealed={revealedClues.has(clueKey(currentClue))}
                   keyboardInset={keyboardInset}
+                  hidden={pageMoving}
                   onPrev={handlePrevClue}
                   onNext={handleNextClue}
                   onReveal={revealClue}
