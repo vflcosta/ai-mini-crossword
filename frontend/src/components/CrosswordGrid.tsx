@@ -222,6 +222,11 @@ export const CrosswordGrid: React.FC<CrosswordGridProps> = ({
                   }}
                   type="text"
                   maxLength={1}
+                  // one letter per square: no word suggestions, no auto-correct
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   value={userAnswers[rIdx][cIdx] || ""}
                   onChange={(e) => handleChange(e, rIdx, cIdx)}
                   onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}

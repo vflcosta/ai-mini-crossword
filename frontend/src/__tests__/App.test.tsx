@@ -197,7 +197,7 @@ describe('clues', () => {
   it('clicking a square shows its across clue and length', async () => {
     await startRandomPuzzle();
     click(SQUARE.A);
-    expect(screen.getByText('It grows in a pot')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
     expect(screen.getByText(/Across • 5 letters/)).toBeInTheDocument();
   });
 
@@ -205,27 +205,27 @@ describe('clues', () => {
     await startRandomPuzzle();
     click(SQUARE.L);
     click(SQUARE.L);
-    expect(screen.getByText('It falls in autumn')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
     expect(screen.getByText(/Down • 4 letters/)).toBeInTheDocument();
   });
 
   it('a square that only belongs to a down word shows the down clue', async () => {
     await startRandomPuzzle();
     click(SQUARE.R_of_TREE);
-    expect(screen.getByText('It has a trunk')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
   });
 
   it('Next and Previous walk through the clues in number order', async () => {
     await startRandomPuzzle();
     click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    expect(screen.getByText('It falls in autumn')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    expect(screen.getByText('It has a trunk')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /next/i })); // already last
-    expect(screen.getByText('It has a trunk')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /previous/i }));
-    expect(screen.getByText('It falls in autumn')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' })); // already last
+    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '← Previous' }));
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
   });
 
   it('the answer stays hidden until "Reveal answer" is pressed', async () => {
@@ -285,7 +285,7 @@ describe('typing', () => {
     click(SQUARE.L); // switch to the down word LEAF
     type(SQUARE.L, 'L');
     expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
-    expect(screen.getByText('It falls in autumn')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
   });
 
   it('the cursor stays put at the end of a down word', async () => {
@@ -592,6 +592,84 @@ describe('look and feel', () => {
       'mailto:aiminicrosswordpuzzle@gmail.com'
     );
     window.location.hash = '';
+  });
+});
+
+describe('clue bar above the phone keyboard', () => {
+  const bar = () => screen.queryByRole('region', { name: 'Current clue' });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is not shown until the player starts typing', async () => {
+    await startRandomPuzzle();
+    expect(bar()).not.toBeInTheDocument();
+  });
+
+  it('while typing, the current clue is pinned above the keyboard', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    expect(bar()).toHaveTextContent('1 across · 5 letters');
+    expect(bar()).toHaveTextContent('It grows in a pot');
+  });
+
+  it('its arrows move to the next and previous clue and keep the cursor in the grid', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Next clue' }));
+    expect(bar()).toHaveTextContent('2 down · 4 letters');
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    expect(squares()[SQUARE.L]).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous clue' }));
+    expect(bar()).toHaveTextContent('It grows in a pot');
+    expect(squares()[SQUARE.P]).toHaveFocus();
+  });
+
+  it('its light bulb reveals the answer, which counts as a reveal', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal this answer' }));
+    expect(bar()).toHaveTextContent('1 across · PLANT');
+    expect(screen.queryByRole('button', { name: 'Reveal this answer' })).not.toBeInTheDocument();
+    expect(screen.getByText('revealed')).toBeInTheDocument();
+  });
+
+  it('goes away when the player stops typing', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    expect(bar()).toBeInTheDocument();
+    act(() => squares()[SQUARE.P].blur());
+    await waitFor(() => expect(bar()).not.toBeInTheDocument());
+  });
+
+  it('stays while the cursor hops from square to square', async () => {
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    type(SQUARE.P, 'P');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(bar()).toBeInTheDocument();
+  });
+
+  it('wide screens do not get the bar', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+    await startRandomPuzzle();
+    click(SQUARE.P);
+    expect(bar()).not.toBeInTheDocument();
+  });
+
+  it("squares switch off the phone's word suggestions and auto-correct", async () => {
+    await startRandomPuzzle();
+    const square = squares()[SQUARE.P];
+    expect(square).toHaveAttribute('autocomplete', 'off');
+    expect(square).toHaveAttribute('autocorrect', 'off');
+    expect(square).toHaveAttribute('spellcheck', 'false');
   });
 });
 

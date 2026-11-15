@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CrosswordGrid } from "./components/CrosswordGrid";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
 import { HeroCrossword } from "./components/HeroCrossword";
 import { ClueLists } from "./components/ClueLists";
-import { useIsDesktop } from "./hooks";
+import { useIsDesktop, useKeyboardInset } from "./hooks";
+import { TypingClueBar } from "./components/TypingClueBar";
 import { describePuzzle, track, type PuzzleType } from "./analytics";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
@@ -81,6 +82,21 @@ export default function App() {
   const [loadingLabel, setLoadingLabel] = useState("");
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
+  const keyboardInset = useKeyboardInset();
+  // true while the cursor is in the grid (on a phone: while the keyboard is open)
+  const [typing, setTyping] = useState(false);
+  const stopTyping = useRef<number | undefined>(undefined);
+  const handleGridFocus = () => {
+    window.clearTimeout(stopTyping.current);
+    setTyping(true);
+  };
+  // the cursor hops from square to square, so wait a moment before deciding
+  // the player has really stopped typing
+  const handleGridBlur = () => {
+    window.clearTimeout(stopTyping.current);
+    stopTyping.current = window.setTimeout(() => setTyping(false), 200);
+  };
+  useEffect(() => () => window.clearTimeout(stopTyping.current), []);
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
   const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
@@ -287,6 +303,7 @@ export default function App() {
   };
 
   const handleBackHome = () => {
+    setTyping(false);
     setView("home");
     setIsTimerRunning(false);
     setShowCompletion(false);
@@ -486,7 +503,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="grid-wrapper">
+            <div className="grid-wrapper" onFocus={handleGridFocus} onBlur={handleGridBlur}>
               <CrosswordGrid
                 grid={currentCrossword.grid}
                 userAnswers={userAnswers}
@@ -555,6 +572,21 @@ export default function App() {
               />
             )}
             </div>
+
+            {!isDesktop && typing && currentClue && !showCompletion && (
+              <>
+                {/* room to scroll, so the bar never hides the end of the page */}
+                <div className="typing-bar-spacer" style={{ height: keyboardInset + 72 }} />
+                <TypingClueBar
+                  clue={currentClue}
+                  revealed={revealedClues.has(clueKey(currentClue))}
+                  keyboardInset={keyboardInset}
+                  onPrev={handlePrevClue}
+                  onNext={handleNextClue}
+                  onReveal={revealClue}
+                />
+              </>
+            )}
 
             {showCompletion && (
               <div className="modal-backdrop" onClick={() => setShowCompletion(false)}>
