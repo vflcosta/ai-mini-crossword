@@ -1,6 +1,6 @@
 /**
- * The iPhone app is the same game packed into an app. These checks catch the
- * setup mistakes that would ship a broken app to the App Store.
+ * The iPhone and Android apps are the same game packed into an app. These
+ * checks catch the setup mistakes that would ship a broken app to a store.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,14 +13,15 @@ const setting = (file: string, name: string) =>
 
 describe('iPhone app setup', () => {
   it('the app is built against the live backend, never a local one', () => {
-    const address = read('.env.ios').match(/^VITE_API_URL=(.+)$/m)?.[1]?.trim();
+    const address = read('.env.app').match(/^VITE_API_URL=(.+)$/m)?.[1]?.trim();
     expect(address).toMatch(/^https:\/\/[a-z0-9.-]+$/);
     expect(address).not.toMatch(/localhost|127\.0\.0\.1/);
   });
 
   it('the build command always rebuilds the game for the app before packing it', () => {
     const scripts = JSON.parse(read('package.json')).scripts;
-    expect(scripts['build:ios']).toBe('vite build --mode ios && cap sync ios');
+    expect(scripts['build:ios']).toBe('vite build --mode app && cap sync ios');
+    expect(scripts['build:android']).toBe('vite build --mode app && cap sync android');
   });
 
   it('the tool that reads the app settings file is installed with the project', () => {
@@ -57,5 +58,53 @@ describe('iPhone app setup', () => {
     const iphone = plist.split('<key>UISupportedInterfaceOrientations</key>')[1].split('</array>')[0];
     expect(iphone).toContain('UIInterfaceOrientationPortrait');
     expect(iphone).not.toContain('Landscape');
+  });
+});
+
+describe('Android app setup', () => {
+  const manifest = () => read('android/app/src/main/AndroidManifest.xml');
+
+  it('the Android keyboard does not suggest words, and still opens', () => {
+    // Found by Valentina on the Android test phone: the keyboard showed
+    // "S | SO | SHE" above the keys while she filled in an answer.
+    const view = read('android/app/src/main/java/com/aiminicrossword/app/CrosswordWebView.java');
+    expect(view).toContain('extends CapacitorWebView');
+    expect(view).toContain('TYPE_TEXT_VARIATION_VISIBLE_PASSWORD');
+    expect(view).toContain('TYPE_TEXT_FLAG_NO_SUGGESTIONS');
+    // the app's screen must actually use that class
+    const screen = read('android/app/src/main/res/layout/capacitor_bridge_layout_main.xml');
+    expect(screen).toContain('<com.aiminicrossword.app.CrosswordWebView');
+    expect(screen).toContain('android:id="@+id/webview"');
+    // the first attempt (captureInput) removed the suggestions but also the
+    // whole keyboard, so it must not come back
+    expect(read('capacitor.config.ts')).not.toContain('captureInput');
+  });
+
+  it('the app identity matches the Android project', () => {
+    const appId = setting('capacitor.config.ts', 'appId');
+    expect(read('android/app/build.gradle')).toContain(`applicationId "${appId}"`);
+  });
+
+  it('the app stays upright and the page shrinks above the keyboard', () => {
+    expect(manifest()).toContain('android:screenOrientation="portrait"');
+    expect(manifest()).toContain('android:windowSoftInputMode="adjustResize"');
+  });
+
+  it('the name under the icon is short enough to show in full', () => {
+    expect(read('android/app/src/main/res/values/strings.xml')).toContain(
+      '<string name="app_name">AI Crossword</string>'
+    );
+  });
+
+  it('the Back button helper is installed and packed into both apps', () => {
+    expect(JSON.parse(read('package.json')).dependencies).toHaveProperty('@capacitor/app');
+    expect(read('android/capacitor.settings.gradle')).toContain(':capacitor-app');
+    expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorApp');
+  });
+
+  it('the Google Play signing key can never be added to the code', () => {
+    const ignored = read('android/.gitignore');
+    expect(ignored).toContain('*.jks');
+    expect(ignored).toContain('*.keystore');
   });
 });

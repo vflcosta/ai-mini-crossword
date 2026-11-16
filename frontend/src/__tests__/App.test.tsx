@@ -21,6 +21,15 @@ vi.mock('../analytics', async (importOriginal) => ({
 }));
 const trackMock = vi.mocked(track);
 
+// Android's Back button: the test presses it by calling the game's handler
+const androidBack = vi.hoisted(() => ({ press: null as null | (() => boolean) }));
+vi.mock('../native', () => ({
+  onAndroidBack: (handler: () => boolean) => {
+    androidBack.press = handler;
+    return () => {};
+  },
+}));
+
 // P L A N T      1 across: PLANT
 // # E # # R      2 down:   LEAF
 // # A # # E      3 down:   TREE
@@ -831,6 +840,34 @@ describe('clue bar above the phone keyboard', () => {
     expect(square).toHaveAttribute('autocomplete', 'off');
     expect(square).toHaveAttribute('autocorrect', 'off');
     expect(square).toHaveAttribute('spellcheck', 'false');
+  });
+});
+
+describe("Android's Back button", () => {
+  it('on the home screen it is left to the phone (the app is put away)', () => {
+    render(<App />);
+    expect(androidBack.press!()).toBe(false);
+  });
+
+  it('in a puzzle it goes back to the home screen', async () => {
+    await startRandomPuzzle();
+    let handled = false;
+    act(() => {
+      handled = androidBack.press!();
+    });
+    expect(handled).toBe(true);
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
+  });
+
+  it('on the privacy policy it closes the policy', async () => {
+    window.location.hash = '#privacy';
+    render(<App />);
+    let handled = false;
+    act(() => {
+      handled = androidBack.press!();
+    });
+    expect(handled).toBe(true);
+    await waitFor(() => expect(window.location.hash).toBe(''));
   });
 });
 

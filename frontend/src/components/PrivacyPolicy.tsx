@@ -38,7 +38,7 @@ export function PrivacyPolicy() {
           and a few game events: a puzzle was started (and whether it was today's puzzle, a
           featured theme or your own theme), a puzzle was completed (with the solving time and the
           number of answers revealed), and the daily limit was reached, each with whether it
-          happened on the website or in the iPhone app. The statistics do not include the theme
+          happened on the website or in the phone app. The statistics do not include the theme
           text you type, they do not use cookies or store anything in your browser or on your
           phone, and they are not used to identify you.
         </li>

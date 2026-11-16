@@ -7,6 +7,7 @@ import { HeroCrossword } from "./components/HeroCrossword";
 import { ClueLists } from "./components/ClueLists";
 import { useIsDesktop, useKeyboardInset } from "./hooks";
 import { TypingClueBar } from "./components/TypingClueBar";
+import { onAndroidBack } from "./native";
 import { describePuzzle, track, type PuzzleType } from "./analytics";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
@@ -108,6 +109,22 @@ export default function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  // Android's Back button: privacy policy -> close it, puzzle -> home screen.
+  // A ref keeps the listener reading the current screen without re-registering.
+  const backRef = useRef<() => boolean>(() => false);
+  backRef.current = () => {
+    if (showPrivacy) {
+      window.location.hash = "";
+      return true;
+    }
+    if (view === "playing") {
+      handleBackHome();
+      return true;
+    }
+    return false;
+  };
+  useEffect(() => onAndroidBack(() => backRef.current()), []);
 
   // timer
   useEffect(() => {

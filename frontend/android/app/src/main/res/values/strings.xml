@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AI Crossword</string>
+    <string name="title_activity_main">AI Crossword</string>
+    <string name="package_name">com.aiminicrossword.app</string>
+    <string name="custom_url_scheme">com.aiminicrossword.app</string>
+</resources>

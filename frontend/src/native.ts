@@ -24,3 +24,33 @@ export async function setupNativeApp(): Promise<void> {
     // the game works without this; the strip simply stays visible
   }
 }
+
+/**
+ * Android phones have a Back button (or a back swipe). In the app it should
+ * behave like the game's own "Back" links: close the privacy policy, leave a
+ * puzzle for the home screen, and only on the home screen put the app away.
+ * `handleBack` returns true when the game handled the press itself.
+ * Does nothing on the website or on iPhone. Returns a function that stops listening.
+ */
+export function onAndroidBack(handleBack: () => boolean): () => void {
+  if (Capacitor.getPlatform() !== "android") return () => {};
+  let stop: (() => void) | undefined;
+  let stopped = false;
+  import("@capacitor/app")
+    .then(({ App }) =>
+      App.addListener("backButton", () => {
+        if (!handleBack()) App.minimizeApp();
+      })
+    )
+    .then((listener) => {
+      stop = () => listener.remove();
+      if (stopped) stop();
+    })
+    .catch(() => {
+      // the game works without this; Back then simply leaves the app
+    });
+  return () => {
+    stopped = true;
+    stop?.();
+  };
+}
