@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The screen of the app: one window that shows the game.
+  This file has the same name as the one that comes with Capacitor, so the app
+  uses this one instead. The only difference is CrosswordWebView, which stops
+  the keyboard from suggesting words (see CrosswordWebView.java).
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.getcapacitor.BridgeActivity"
+    >
+
+    <com.aiminicrossword.app.CrosswordWebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -64,13 +64,20 @@ describe('iPhone app setup', () => {
 describe('Android app setup', () => {
   const manifest = () => read('android/app/src/main/AndroidManifest.xml');
 
-  it('asks the Android keyboard for plain key presses, so it cannot suggest words', () => {
+  it('the Android keyboard does not suggest words, and still opens', () => {
     // Found by Valentina on the Android test phone: the keyboard showed
     // "S | SO | SHE" above the keys while she filled in an answer.
-    const config = read('capacitor.config.ts');
-    const android = config.slice(config.indexOf('android: {'));
-    expect(config).toContain('android: {');
-    expect(android).toMatch(/captureInput:\s*true/);
+    const view = read('android/app/src/main/java/com/aiminicrossword/app/CrosswordWebView.java');
+    expect(view).toContain('extends CapacitorWebView');
+    expect(view).toContain('TYPE_TEXT_VARIATION_VISIBLE_PASSWORD');
+    expect(view).toContain('TYPE_TEXT_FLAG_NO_SUGGESTIONS');
+    // the app's screen must actually use that class
+    const screen = read('android/app/src/main/res/layout/capacitor_bridge_layout_main.xml');
+    expect(screen).toContain('<com.aiminicrossword.app.CrosswordWebView');
+    expect(screen).toContain('android:id="@+id/webview"');
+    // the first attempt (captureInput) removed the suggestions but also the
+    // whole keyboard, so it must not come back
+    expect(read('capacitor.config.ts')).not.toContain('captureInput');
   });
 
   it('the app identity matches the Android project', () => {
