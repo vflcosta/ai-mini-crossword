@@ -14,7 +14,8 @@ today's puzzle, tap a featured theme, or type any topic you are curious about.
 * **Today's Knowledge Mix** – one mixed-topic puzzle a day, the same for everyone
 * **Featured themes** – History, Space, Art, Nature and Science, one tap each
 * **Any theme** – type a topic and get a puzzle about it
-* **Newspaper-style grid** – a dense 5x5 where every letter belongs to an across and a down word
+* **Themed puzzles teach the theme** – every answer in a themed puzzle is about that theme
+* **Newspaper-style daily grid** – today's puzzle is a dense 5x5 where every letter belongs to an across and a down word
 * **Made for phones and desktop** – one column on phones, grid plus full clue lists on wide screens
 * **Daily limits** – each puzzle is made once a day and shared, which keeps the AI cost low
 * **Private by design** – no accounts, no cookies, and the themes players type are never put in the statistics
@@ -22,34 +23,30 @@ today's puzzle, tap a featured theme, or type any topic you are curious about.
 * **Tested** – every change must pass the automated tests before it is merged
 
 
-## Example puzzle (theme: Animals)
+## Example puzzle (theme: Music)
 
 ```
-■ W I F E
-■ H O L E
-F A T A L
-A L A S ■
-D E S K ■
+R E S T ■
+A ■ C ■ B
+P I A N O
+■ ■ L ■ W
+■ K E Y ■
 ```
 
 | Across | Clue | Answer |
 | ------ | ---- | ------ |
-| 1 | Married woman | WIFE |
-| 5 | A burrow is one | HOLE |
-| 6 | Deadly | FATAL |
-| 7 | "What a pity!" | ALAS |
-| 8 | Office furniture | DESK |
+| 1 | A silence written into music | REST |
+| 4 | Instrument with 88 black and white keys | PIANO |
+| 5 | C major, for one | KEY |
 
 | Down | Clue | Answer |
 | ---- | ---- | ------ |
-| 1 | Largest sea mammal | WHALE |
-| 2 | Tiny amounts | IOTAS |
-| 3 | Lab bottle | FLASK |
-| 4 | Snake-like fish | EEL |
-| 6 | Passing craze | FAD |
+| 1 | Rhythmic spoken-word genre | RAP |
+| 2 | Do-re-mi sequence of notes | SCALE |
+| 3 | Violinist's stick | BOW |
 
-Themed words go in wherever they fit (here WHALE and EEL) and common English
-words fill the rest. See "How a puzzle is built" below.
+Every answer in a themed puzzle is about the theme. Today's puzzle (no theme)
+uses a dense grid instead. See "How a puzzle is built" below.
 
 
 ## API overview
@@ -62,7 +59,7 @@ Returns a puzzle. Without a theme it returns today's puzzle.
 
 ```json
 {
-  "theme": "animals",
+  "theme": "music",
   "size": 5
 }
 ```
@@ -72,20 +69,20 @@ Returns a puzzle. Without a theme it returns today's puzzle.
 ```json
 {
   "grid": [
-    ["#", "W", "I", "F", "E"],
-    ["#", "H", "O", "L", "E"],
-    ["F", "A", "T", "A", "L"],
-    ["A", "L", "A", "S", "#"],
-    ["D", "E", "S", "K", "#"]
+    ["R", "E", "S", "T", "#"],
+    ["A", "#", "C", "#", "B"],
+    ["P", "I", "A", "N", "O"],
+    ["#", "#", "L", "#", "W"],
+    ["#", "K", "E", "Y", "#"]
   ],
   "clues": {
     "across": [
-      { "number": 1, "clue": "Married woman", "answer": "WIFE" },
-      { "number": 5, "clue": "A burrow is one", "answer": "HOLE" }
+      { "number": 1, "clue": "A silence written into music", "answer": "REST" },
+      { "number": 4, "clue": "Instrument with 88 black and white keys", "answer": "PIANO" }
     ],
     "down": [
-      { "number": 1, "clue": "Largest sea mammal", "answer": "WHALE" },
-      { "number": 2, "clue": "Tiny amounts", "answer": "IOTAS" }
+      { "number": 1, "clue": "Rhythmic spoken-word genre", "answer": "RAP" },
+      { "number": 2, "clue": "Do-re-mi sequence of notes", "answer": "SCALE" }
     ]
   },
   "meta": {
@@ -220,14 +217,26 @@ asking you to remove the marker. From then on the test protects the fix.
 
 ## How a puzzle is built
 
-1. The AI is asked for about 30 words and clues on the theme.
-2. A 5x5 newspaper-style grid is filled: themed words go in wherever they fit
-   (usually about 3 of the 10 answers) and common English words from
-   `backend/data/words.txt` fill the rest, so every letter belongs to an across
-   word and a down word.
-3. The AI writes clues for the non-themed words.
-4. If step 2 or 3 is not possible (AI offline, or a grid larger than 5x5), a
-   simpler layout is used that contains only the AI's words crossing each other.
+**Themed puzzles** (a featured theme or a typed topic): every answer is about
+the theme, so the puzzle teaches it.
+
+1. The AI is asked for about 40 words on the theme, each with a clue that
+   teaches or recalls a fact about it.
+2. The words are laid out crossing each other in a 5x5 grid (usually 5 or 6
+   answers). Squares no word uses are black.
+
+**Today's Knowledge Mix** (no theme): a dense newspaper-style grid.
+
+1. The AI is asked for about 30 words and clues on mixed topics.
+2. A 5x5 grid is filled so every letter belongs to an across word and a down
+   word: the AI's words go in where they fit and common English words from
+   `backend/data/words.txt` fill the rest.
+3. The AI writes clues for those extra words.
+
+Why two layouts: a dense grid can hold only about 4 themed answers out of 10,
+because the others must be whatever words fit the crossings. If too few themed
+words fit, or the AI is offline, the puzzle falls back to the other layout or
+to a built-in puzzle.
 
 Each puzzle is kept for the rest of the day and shared: "Today's Knowledge Mix"
 (no theme) is made once a day, and so is each theme. Only brand-new puzzles

@@ -104,7 +104,9 @@ def _build_prompt(theme: Optional[str], num: int, size: int) -> str:
     if theme:
         theme_block = f"""
 THEME: "{theme}"
-- At least 70% must clearly relate to this theme.
+- EVERY answer must clearly relate to this theme. Do not pad with unrelated words.
+- Each clue should teach or recall a fact about the theme, so solving the puzzle teaches something about it.
+- Mix the lengths: include plenty of {size}-letter answers as well as shorter ones.
 - If a natural themed answer is longer than {size}, CHANGE THE CLUE so the answer is a real word 3–{size} letters long.
 """
     else:
@@ -301,6 +303,11 @@ def build_dense_crossword(words: List[Dict[str, str]], theme: Optional[str], siz
 #   * each word keeps the clue it was written for
 
 _EXTRA_TRIES = 60  # extra word orders to try per puzzle (about 0.1s in total)
+# Themed puzzles use this layout on purpose (see generate_crossword), so they
+# get a longer search for the fullest grid (about 0.5s in total).
+_THEMED_TRIES = 400
+# A themed puzzle needs at least this many answers to be worth playing.
+MIN_THEMED_WORDS = 4
 
 
 class _Board:
@@ -391,7 +398,8 @@ def _layout(order: List[Dict[str, str]], size: int) -> _Board:
     return board
 
 
-def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
+def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7,
+                               tries: int = _EXTRA_TRIES):
     # keep only words that fit, and only the first copy of a repeated answer
     seen = set()
     usable: List[Dict[str, str]] = []
@@ -406,21 +414,25 @@ def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
         return [["#"] * size for _ in range(size)], {"across": [], "down": []}
 
     # Try several word orders and keep the puzzle with the most words (ties:
-    # most crossings, then the earliest try). First: longest word first, with
+    # most crossings, then most letters in the grid, then the earliest try). First: longest word first, with
     # each word in turn as the starting word. Then a fixed set of shuffles;
     # the fixed seed means the same words always give the same puzzle.
     usable.sort(key=lambda w: len(w["answer"]), reverse=True)
     orders = [[usable[i]] + usable[:i] + usable[i + 1:] for i in range(len(usable))]
     rng = random.Random(0)
-    for _ in range(_EXTRA_TRIES):
+    for _ in range(tries):
         shuffled = usable[:]
         rng.shuffle(shuffled)
         orders.append(shuffled)
 
+    def score(board: _Board):
+        letters = sum(1 for row in board.letters for cell in row if cell)
+        return (len(board.placed), board.crossings, letters)
+
     best: Optional[_Board] = None
     for order in orders:
         board = _layout(order, size)
-        if best is None or (len(board.placed), board.crossings) > (len(best.placed), best.crossings):
+        if best is None or score(board) > score(best):
             best = board
 
     grid = [[cell or "#" for cell in row] for row in best.letters]
@@ -430,27 +442,53 @@ def build_crossword_from_words(words: List[Dict[str, str]], size: int = 7):
 
 # ---------- public entrypoint ----------
 
+def build_themed_crossword(words: List[Dict[str, str]], size: int):
+    """
+    A puzzle in which EVERY answer is one of the AI's themed words, so the
+    whole puzzle teaches the theme. The words cross each other; squares that
+    no word uses are black. Returns None when fewer than MIN_THEMED_WORDS fit.
+
+    (A dense newspaper-style grid cannot do this: only about 4 of its 10
+    answers can be themed, the rest must be whatever words fit the crossings.)
+    """
+    grid, clues = build_crossword_from_words(words, size=size, tries=_THEMED_TRIES)
+    if len(clues["across"]) + len(clues["down"]) < MIN_THEMED_WORDS:
+        return None
+    return grid, clues
+
+
 def generate_crossword(theme: Optional[str] = None, size: int = 5):
     """
     Returns {"grid", "clues", "fallback"}. "fallback" is True when the AI was
     unavailable and the built-in words were used (such a puzzle should not be
     kept and shown to everyone for the rest of the day).
+
+    - With a theme: every answer is about the theme (crossing layout).
+    - Without a theme (today's mix): a dense newspaper-style grid.
     """
-    # ask for plenty of themed words: the more there are, the more fit the grid
-    raw = generate_clues(theme, size, num=30)
+    # ask for plenty of words: the more there are, the fuller the grid
+    raw = generate_clues(theme, size, num=40 if theme else 30)
     words_pool = raw["across"] + raw["down"]
     if not words_pool:
         return {"error": "Could not generate clues."}
     used_fallback = raw == _fallback()
 
-    # 1) newspaper-style dense grid (needs the AI for the extra clues)
+    # 1) themed puzzle: only the AI's themed words, crossing each other
+    if theme and not used_fallback:
+        themed = build_themed_crossword(words_pool, size)
+        if themed is not None:
+            grid, final_clues = themed
+            return {"grid": grid, "clues": final_clues, "fallback": False}
+        logger.warning("Too few themed words fit the grid; using the dense layout")
+
+    # 2) newspaper-style dense grid (needs the AI for the extra clues)
     if not used_fallback:
         dense = build_dense_crossword(words_pool, theme, size)
         if dense is not None:
             grid, final_clues = dense
             return {"grid": grid, "clues": final_clues, "fallback": False}
 
-    # 2) simple layout: only the AI's (or the built-in) words, crossing each other
+    # 3) simple layout: only the AI's (or the built-in) words, crossing each other
     grid, final_clues = build_crossword_from_words(words_pool, size=size)
     return {
         "grid": grid,

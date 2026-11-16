@@ -1,0 +1,11 @@
+{
+	"appId": "com.aiminicrossword.app",
+	"appName": "AI Mini Crossword",
+	"webDir": "build",
+	"backgroundColor": "#f5f3ff",
+	"plugins": {
+		"Keyboard": {
+			"resize": "native"
+		}
+	}
+}
