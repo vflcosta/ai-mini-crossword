@@ -16,6 +16,12 @@ const config: CapacitorConfig = {
     // when the keyboard opens, the page shrinks to the space above it
     Keyboard: { resize: "native" },
   },
+  android: {
+    // Android keyboards show a row of suggested words ("S | SO | SHE") while
+    // typing. In a crossword that gives answers away, so the app asks for
+    // plain key presses instead, which leaves the keyboard nothing to suggest.
+    captureInput: true,
+  },
 };
 
 export default config;

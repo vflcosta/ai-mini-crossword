@@ -64,6 +64,15 @@ describe('iPhone app setup', () => {
 describe('Android app setup', () => {
   const manifest = () => read('android/app/src/main/AndroidManifest.xml');
 
+  it('asks the Android keyboard for plain key presses, so it cannot suggest words', () => {
+    // Found by Valentina on the Android test phone: the keyboard showed
+    // "S | SO | SHE" above the keys while she filled in an answer.
+    const config = read('capacitor.config.ts');
+    const android = config.slice(config.indexOf('android: {'));
+    expect(config).toContain('android: {');
+    expect(android).toMatch(/captureInput:\s*true/);
+  });
+
   it('the app identity matches the Android project', () => {
     const appId = setting('capacitor.config.ts', 'appId');
     expect(read('android/app/build.gradle')).toContain(`applicationId "${appId}"`);
