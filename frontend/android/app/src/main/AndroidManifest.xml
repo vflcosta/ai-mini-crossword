@@ -31,6 +31,12 @@
         </provider>
     </application>
 
+    <!-- The game is locked upright (screenOrientation above). Android would
+         take that as "this device must have an upright screen" and hide the
+         app from devices that only run sideways, such as some Chromebooks.
+         Upright is preferred, not required. -->
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
