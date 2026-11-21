@@ -247,11 +247,11 @@ describe('featured themes', () => {
   it("shows today's angle under each theme", async () => {
     anglesMock.mockResolvedValue(ANGLES);
     render(<App />);
-    expect(await screen.findByText('Today: Samurai Japan')).toBeInTheDocument();
-    expect(screen.getByText('Today: Musicals')).toBeInTheDocument();
+    expect(await screen.findByText('Samurai Japan')).toBeInTheDocument();
+    expect(screen.getByText('Musicals')).toBeInTheDocument();
     // screen readers hear the plain name, then the angle as a description
     const history = screen.getByRole('button', { name: 'History' });
-    expect(history).toHaveAccessibleDescription('Today: Samurai Japan');
+    expect(history).toHaveAccessibleDescription('Samurai Japan');
   });
 
   it('the themes still work when the angles cannot be loaded', async () => {
@@ -267,7 +267,7 @@ describe('featured themes', () => {
     anglesMock.mockResolvedValue(ANGLES);
     generateMock.mockReturnValue(new Promise(() => {}));
     render(<App />);
-    await screen.findByText('Today: The Moon');
+    await screen.findByText('The Moon');
     fireEvent.click(screen.getByRole('button', { name: 'Space' }));
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Creating your Space · The Moon crossword…'
@@ -276,9 +276,7 @@ describe('featured themes', () => {
 
   it('says the featured themes are free, with a new angle every day', () => {
     render(<App />);
-    expect(
-      screen.getByText('Featured themes are free to play, with a new angle every day')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Free to play · a new angle every day')).toBeInTheDocument();
   });
 });
 
@@ -830,7 +828,7 @@ describe('daily limits', () => {
 
   it('featured themes are labelled as free', () => {
     render(<App />);
-    expect(screen.getByText(/featured themes are free/i)).toBeInTheDocument();
+    expect(screen.getByText(/free to play/i)).toBeInTheDocument();
   });
 });
 

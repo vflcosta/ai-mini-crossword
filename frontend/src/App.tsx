@@ -252,14 +252,14 @@ export default function App() {
                       <span className="theme-tile-name">{label}</span>
                       {angles[label] && (
                         <span className="theme-tile-angle" id={`angle-${label}`}>
-                          Today: {angles[label]}
+                          {angles[label]}
                         </span>
                       )}
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="daily-caption">Featured themes are free to play, with a new angle every day</p>
+              <p className="daily-caption">Free to play · a new angle every day</p>
 
               <label className="field-label" htmlFor="theme-input">
                 Curious about something else?
