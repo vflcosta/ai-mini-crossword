@@ -50,7 +50,7 @@ def test_random_puzzle_needs_no_theme(fake_ai):
     fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={"theme": None})
     assert res.status_code == 200
-    assert len(res.json()["grid"]) == 5  # default size: the classic 5x5 mini
+    assert len(res.json()["grid"]) == 7  # default size: the game's 7x7
     assert "Mixed everyday topics" in fake_ai.prompts[0]
 
 
@@ -58,7 +58,7 @@ def test_empty_body_uses_defaults(fake_ai):
     fake_ai.reply_words(**ANIMALS)
     res = client.post("/generate-crossword", json={})
     assert res.status_code == 200
-    assert len(res.json()["grid"]) == 5
+    assert len(res.json()["grid"]) == 7
 
 
 def test_still_returns_a_puzzle_when_the_ai_is_down(fake_ai):

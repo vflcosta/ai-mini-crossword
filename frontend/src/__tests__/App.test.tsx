@@ -1,9 +1,9 @@
 /**
- * Playing the game, the way a real user would: click, type, solve.
+ * Playing the game, the way a real user would: tap, type, solve.
  * The backend is faked, so these tests need no server and no AI.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App, { limitNotice, puzzleDateLabel, timeUntil } from '../App';
 import { generateCrossword, LimitReachedError } from '../api';
 import { track } from '../analytics';
@@ -56,10 +56,31 @@ const SOLUTION = 'PLANT' + 'ER' + 'AE' + 'FE';
 const SQUARE = { P: 0, L: 1, A: 2, N: 3, T: 4, E_of_LEAF: 5, R_of_TREE: 6 };
 
 const squares = () =>
-  Array.from(document.querySelectorAll<HTMLInputElement>('input[data-square]'));
-const type = (index: number, letter: string) =>
-  fireEvent.change(squares()[index], { target: { value: letter } });
-const click = (index: number) => fireEvent.click(squares()[index]);
+  Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-square]'));
+/** The letter in a square (without its clue number). */
+const letterIn = (square: HTMLElement) =>
+  Array.from(square.childNodes)
+    .filter((n) => n.nodeType === Node.TEXT_NODE)
+    .map((n) => n.textContent)
+    .join('');
+const letters = () => squares().map(letterIn).join('');
+const tap = (index: number) => fireEvent.click(squares()[index]);
+/** Press a key on the game's own A–Z keyboard. */
+const press = (letter: string) =>
+  fireEvent.click(screen.getByRole('button', { name: letter, exact: true }));
+const pressDelete = () => fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+/** Press a key on a physical keyboard. */
+const keyDown = (key: string, extra: Partial<KeyboardEventInit> = {}) =>
+  fireEvent.keyDown(window, { key, ...extra });
+const current = () => squares().findIndex((s) => s.classList.contains('is-current'));
+const bar = () => screen.queryByRole('region', { name: 'Current clue' });
+const sheet = () => screen.queryByRole('dialog', { name: 'Puzzle complete' });
+/** Fill every square with the given letters, in reading order. */
+const fillAll = (text: string) =>
+  text.split('').forEach((ch, i) => {
+    if (current() !== i) tap(i);
+    keyDown(ch);
+  });
 
 async function startRandomPuzzle() {
   render(<App />);
@@ -114,9 +135,16 @@ describe('home screen', () => {
     expect(document.querySelectorAll('.how-list li')).toHaveLength(3);
   });
 
-  it('"Play today\'s puzzle" asks for a 5x5 puzzle with no theme and opens the game', async () => {
+  it('describes the puzzles as 7×7', () => {
+    render(<App />);
+    expect(screen.getByText(/A fresh 7×7 puzzle every day/)).toBeInTheDocument();
+    expect(screen.getByText(/A 7×7 mini crossword, made fresh by AI/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('5×5');
+  });
+
+  it('"Play today\'s puzzle" asks for a 7x7 puzzle with no theme and opens the game', async () => {
     await startRandomPuzzle();
-    expect(generateMock).toHaveBeenCalledWith(null, 5);
+    expect(generateMock).toHaveBeenCalledWith(null, 7);
     expect(screen.getByText('0:00')).toBeInTheDocument();
   });
 
@@ -127,7 +155,7 @@ describe('home screen', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    expect(generateMock).toHaveBeenCalledWith('space', 5);
+    expect(generateMock).toHaveBeenCalledWith('space', 7);
   });
 
   it('shows a loading screen with a skeleton grid while the puzzle is being made', async () => {
@@ -139,7 +167,7 @@ describe('home screen', () => {
     const loader = await screen.findByRole('status');
     expect(loader).toHaveTextContent('Creating your History crossword…');
     expect(loader).toHaveTextContent('This can take up to 1 minute');
-    expect(document.querySelectorAll('.skeleton-cell')).toHaveLength(25);
+    expect(document.querySelectorAll('.skeleton-cell')).toHaveLength(49);
     // the home screen is hidden, so nothing can be started twice
     expect(screen.queryByRole('button', { name: 'Create puzzle' })).not.toBeInTheDocument();
     expect(generateMock).toHaveBeenCalledTimes(1);
@@ -183,7 +211,7 @@ describe('home screen', () => {
     const input = screen.getByPlaceholderText(/type any theme/i);
     fireEvent.change(input, { target: { value: 'jazz' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => expect(generateMock).toHaveBeenCalledWith('jazz', 5));
+    await waitFor(() => expect(generateMock).toHaveBeenCalledWith('jazz', 7));
   });
 
   it('tapping a theme chip like "History" generates a History puzzle', async () => {
@@ -191,7 +219,7 @@ describe('home screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
     expect(generateMock).toHaveBeenCalledTimes(1);
-    expect(generateMock).toHaveBeenCalledWith('History', 5);
+    expect(generateMock).toHaveBeenCalledWith('History', 7);
   });
 
 
@@ -205,7 +233,7 @@ describe('theme box after a puzzle', () => {
     fireEvent.change(themeBox(), { target: { value: 'volcanoes' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create puzzle' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    fireEvent.click(screen.getByRole('button', { name: '← Back to Home' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Home' }));
     expect(themeBox()).toHaveValue('');
   });
 
@@ -213,329 +241,436 @@ describe('theme box after a puzzle', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Art' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    fireEvent.click(screen.getByRole('button', { name: '← Back to Home' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Home' }));
     expect(themeBox()).toHaveValue('');
   });
 });
 
-describe('clues', () => {
-  it('asks the player to pick a square first', async () => {
+describe('the clue bar', () => {
+  it('opens on the first clue, with its number, direction and length', async () => {
     await startRandomPuzzle();
-    expect(screen.getByText('Select a clue')).toBeInTheDocument();
+    expect(bar()).toHaveTextContent('1 across · 5 letters');
+    expect(bar()).toHaveTextContent('It grows in a pot');
+    expect(current()).toBe(SQUARE.P);
   });
 
-  it('clicking a square shows its across clue and length', async () => {
+  it('tapping a square shows its across clue', async () => {
     await startRandomPuzzle();
-    click(SQUARE.A);
-    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
-    expect(screen.getByText(/Across • 5 letters/)).toBeInTheDocument();
+    tap(SQUARE.R_of_TREE);
+    tap(SQUARE.A);
+    expect(bar()).toHaveTextContent('It grows in a pot');
+    expect(current()).toBe(SQUARE.A);
   });
 
-  it('clicking the same square again switches to the down clue', async () => {
+  it('tapping the same square again switches to the down clue', async () => {
     await startRandomPuzzle();
-    click(SQUARE.L);
-    click(SQUARE.L);
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-    expect(screen.getByText(/Down • 4 letters/)).toBeInTheDocument();
+    tap(SQUARE.L);
+    tap(SQUARE.L);
+    expect(bar()).toHaveTextContent('2 down · 4 letters');
+    expect(bar()).toHaveTextContent('It falls in autumn');
+  });
+
+  it('tapping the clue switches between across and down', async () => {
+    await startRandomPuzzle();
+    tap(SQUARE.L);
+    fireEvent.click(screen.getByRole('button', { name: /Tap to switch between across and down/ }));
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    fireEvent.click(screen.getByRole('button', { name: /Tap to switch between across and down/ }));
+    expect(bar()).toHaveTextContent('It grows in a pot');
   });
 
   it('a square that only belongs to a down word shows the down clue', async () => {
     await startRandomPuzzle();
-    click(SQUARE.R_of_TREE);
-    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
+    tap(SQUARE.R_of_TREE);
+    expect(bar()).toHaveTextContent('3 down · 4 letters');
+    expect(bar()).toHaveTextContent('It has a trunk');
   });
 
-  it('Next and Previous walk through the clues in number order', async () => {
+  it('its arrows walk through the clues in number order and wrap around', async () => {
     await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' })); // already last
-    expect(screen.getByRole('heading', { name: 'It has a trunk' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '← Previous' }));
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-  });
-
-  it('the answer stays hidden until "Reveal answer" is pressed', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    expect(screen.queryByText('PLANT')).not.toBeInTheDocument();
-    expect(screen.getByText('•••••')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
-    expect(screen.getByText('PLANT')).toBeInTheDocument();
-    expect(screen.getByText('revealed')).toBeInTheDocument();
-  });
-});
-
-describe('typing', () => {
-  it('shows typed letters in capitals', async () => {
-    await startRandomPuzzle();
-    type(SQUARE.P, 'p');
-    expect(squares()[SQUARE.P]).toHaveValue('P');
-  });
-
-  it('moves to the next square after a letter in an across word', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'P');
-    expect(squares()[SQUARE.L]).toHaveFocus();
-  });
-
-  it('Backspace clears the current square', async () => {
-    await startRandomPuzzle();
-    type(SQUARE.A, 'A');
-    fireEvent.keyDown(squares()[SQUARE.A], { key: 'Backspace' });
-    expect(squares()[SQUARE.A]).toHaveValue('');
-  });
-
-  it('Backspace on an empty square goes back and clears the previous one', async () => {
-    await startRandomPuzzle();
-    type(SQUARE.P, 'P');
-    fireEvent.keyDown(squares()[SQUARE.L], { key: 'Backspace' });
-    expect(squares()[SQUARE.P]).toHaveValue('');
-    expect(squares()[SQUARE.P]).toHaveFocus();
-  });
-
-  it('arrow keys move between squares and stop at black squares', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.L);
-    fireEvent.keyDown(squares()[SQUARE.L], { key: 'ArrowDown' });
-    expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
-    fireEvent.keyDown(squares()[SQUARE.E_of_LEAF], { key: 'ArrowLeft' }); // black square
-    expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
-    fireEvent.keyDown(squares()[SQUARE.E_of_LEAF], { key: 'ArrowUp' });
-    expect(squares()[SQUARE.L]).toHaveFocus();
-  });
-
-  it('typing in a down word moves the cursor down', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.L);
-    click(SQUARE.L); // switch to the down word LEAF
-    type(SQUARE.L, 'L');
-    expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-  });
-
-  it('the cursor stays put at the end of a down word', async () => {
-    await startRandomPuzzle();
-    const lastOfTree = SOLUTION.length - 1;
-    click(lastOfTree);
-    type(lastOfTree, 'E');
-    expect(squares()[lastOfTree]).toHaveFocus();
-  });
-
-  it('Backspace in a down word goes back up', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.L);
-    click(SQUARE.L); // switch to the down word LEAF
-    type(SQUARE.L, 'L');
-    fireEvent.keyDown(squares()[SQUARE.E_of_LEAF], { key: 'Backspace' });
-    expect(squares()[SQUARE.L]).toHaveFocus();
-    expect(squares()[SQUARE.L]).toHaveValue('');
-  });
-});
-
-describe('typing over letters and moving between clues', () => {
-  // what the square briefly holds when a second letter is typed into it
-  const typeOver = (index: number, contents: string) =>
-    fireEvent.change(squares()[index], { target: { value: contents } });
-
-  it('typing on a filled square replaces its letter and moves on', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'B');
-    click(SQUARE.P);
-    typeOver(SQUARE.P, 'BP'); // new letter typed after the old one
-    expect(squares()[SQUARE.P]).toHaveValue('P');
-    expect(squares()[SQUARE.L]).toHaveFocus();
-  });
-
-  it('the new letter wins wherever the cursor was in the square', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'B');
-    typeOver(SQUARE.P, 'PB'); // new letter typed before the old one
-    expect(squares()[SQUARE.P]).toHaveValue('P');
-  });
-
-  it('typing the same letter again keeps it', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'P');
-    typeOver(SQUARE.P, 'PP');
-    expect(squares()[SQUARE.P]).toHaveValue('P');
-  });
-
-  it('on a phone, tapping the square with the cursor switches across / down, without the paste menu', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.L); // L is in 1 across (PLANT) and 2 down (LEAF)
-    squares()[SQUARE.L].focus();
-    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
-    // false means the phone's own handling (which shows "Paste") was skipped
-    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(false);
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(false);
-    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
-  });
-
-  it('on a phone, tapping another square is left to the phone, so the keyboard still opens', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    squares()[SQUARE.P].focus();
-    expect(fireEvent.touchEnd(squares()[SQUARE.L])).toBe(true);
-    expect(screen.getByRole('heading', { name: 'It grows in a pot' })).toBeInTheDocument();
-  });
-
-  it('squares do not offer text selection or copy and paste', async () => {
-    await startRandomPuzzle();
-    expect(squares()[SQUARE.P].style.userSelect).toBe('none');
-  });
-
-  it('squares take letters only: digits and symbols are ignored', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, '4');
-    expect(squares()[SQUARE.P]).toHaveValue('');
-    type(SQUARE.P, '?');
-    expect(squares()[SQUARE.P]).toHaveValue('');
-    expect(squares()[SQUARE.P]).toHaveFocus(); // the cursor did not move on
-  });
-
-  it('a digit typed on a filled square leaves its letter alone', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'P');
-    click(SQUARE.P);
-    typeOver(SQUARE.P, 'P4');
-    expect(squares()[SQUARE.P]).toHaveValue('P');
-    expect(squares()[SQUARE.P]).toHaveFocus();
+    const next = () => fireEvent.click(screen.getByRole('button', { name: 'Next clue' }));
+    next();
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    next();
+    expect(bar()).toHaveTextContent('It has a trunk');
+    next(); // from the last clue back to the first
+    expect(bar()).toHaveTextContent('It grows in a pot');
+    fireEvent.click(screen.getByRole('button', { name: 'Previous clue' }));
+    expect(bar()).toHaveTextContent('It has a trunk');
   });
 
   it('moving to a clue puts the cursor on its first empty square', async () => {
     await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'P');
-    type(SQUARE.L, 'L'); // L is also the first letter of 2 down (LEAF)
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(screen.getByRole('heading', { name: 'It falls in autumn' })).toBeInTheDocument();
-    expect(squares()[SQUARE.E_of_LEAF]).toHaveFocus();
+    press('P');
+    press('L'); // P and L of PLANT; L is also the first letter of LEAF
+    fireEvent.click(screen.getByRole('button', { name: 'Next clue' }));
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    expect(current()).toBe(SQUARE.E_of_LEAF);
   });
 
-  it('moving to a clue that is already filled in puts the cursor on its first square', async () => {
+  it('long clues stay readable: up to 3 lines, with smaller text', async () => {
+    const long = 'A long, determined campaign for a cause; originally a medieval military expedition';
+    generateMock.mockResolvedValue({
+      ...PUZZLE,
+      clues: { ...PUZZLE.clues, across: [{ number: 1, clue: long, answer: 'PLANT' }] },
+    });
     await startRandomPuzzle();
-    click(SQUARE.P);
-    'PLANT'.split('').forEach((letter, i) => type(i, letter));
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' })); // 2 down
-    fireEvent.click(screen.getByRole('button', { name: '← Previous' })); // back to 1 across
-    expect(squares()[SQUARE.P]).toHaveFocus();
+    const text = screen.getByText(long);
+    expect(text).toHaveClass('clue-bar-clue'); // limited to 3 lines in the stylesheet
+    expect(text).toHaveStyle({ fontSize: '15px' });
+    tap(SQUARE.L);
+    tap(SQUARE.L);
+    expect(screen.getByText('It falls in autumn')).toHaveStyle({ fontSize: '17px' });
+  });
+});
+
+describe("the game's own keyboard", () => {
+  it('has all 26 letters and Delete, and no text box opens the phone keyboard', async () => {
+    await startRandomPuzzle();
+    const keyboard = screen.getByLabelText('Letter keyboard');
+    expect(keyboard.querySelectorAll('button')).toHaveLength(27);
+    for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+      expect(screen.getByRole('button', { name: letter, exact: true })).toBeInTheDocument();
+    }
+    expect(document.querySelector('input, textarea, [contenteditable]')).toBeNull();
+  });
+
+  it('a letter goes in the current square and the cursor moves on', async () => {
+    await startRandomPuzzle();
+    press('P');
+    expect(letterIn(squares()[SQUARE.P])).toBe('P');
+    expect(current()).toBe(SQUARE.L);
+  });
+
+  it('typing skips squares that are already filled', async () => {
+    await startRandomPuzzle();
+    tap(SQUARE.L);
+    tap(SQUARE.L); // LEAF, down
+    press('L');
+    tap(SQUARE.P);
+    tap(SQUARE.P); // back to PLANT, across
+    press('P');
+    expect(current()).toBe(SQUARE.A); // the L was already there
+  });
+
+  it('a finished word jumps to the next unfinished clue', async () => {
+    await startRandomPuzzle();
+    'PLANT'.split('').forEach(press);
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    expect(current()).toBe(SQUARE.E_of_LEAF);
+  });
+
+  it('typing on a filled square replaces its letter', async () => {
+    await startRandomPuzzle();
+    press('X');
+    tap(SQUARE.P);
+    press('P');
+    expect(letterIn(squares()[SQUARE.P])).toBe('P');
+  });
+
+  it('Delete clears the square, or steps back and clears the one before', async () => {
+    await startRandomPuzzle();
+    press('P');
+    press('L');
+    tap(SQUARE.L);
+    tap(SQUARE.L);
+    tap(SQUARE.L); // back to PLANT, across, on the L
+    pressDelete();
+    expect(letterIn(squares()[SQUARE.L])).toBe('');
+    expect(current()).toBe(SQUARE.L);
+    pressDelete(); // empty: step back to P and clear it
+    expect(current()).toBe(SQUARE.P);
+    expect(letterIn(squares()[SQUARE.P])).toBe('');
+  });
+});
+
+describe('a physical keyboard', () => {
+  it('types letters (in any case) and deletes with Backspace', async () => {
+    await startRandomPuzzle();
+    keyDown('p');
+    keyDown('l');
+    expect(letters().slice(0, 2)).toBe('PL');
+    keyDown('Backspace'); // the cursor is on the empty A: step back and clear the L
+    expect(letters()).toBe('P');
+    expect(current()).toBe(SQUARE.L);
+  });
+
+  it('ignores digits, symbols and shortcuts like Ctrl+A', async () => {
+    await startRandomPuzzle();
+    keyDown('5');
+    keyDown('!');
+    keyDown('a', { ctrlKey: true });
+    keyDown('c', { metaKey: true });
+    expect(letters()).toBe('');
+  });
+
+  it('arrow keys move between squares and stop at black squares', async () => {
+    await startRandomPuzzle();
+    tap(SQUARE.L);
+    keyDown('ArrowDown');
+    expect(current()).toBe(SQUARE.E_of_LEAF);
+    keyDown('ArrowLeft'); // black square to the left: stay
+    expect(current()).toBe(SQUARE.E_of_LEAF);
+    keyDown('ArrowUp');
+    keyDown('ArrowRight');
+    expect(current()).toBe(SQUARE.A);
+  });
+});
+
+describe('show answer (the light bulb)', () => {
+  const bulb = () => screen.getByRole('button', { name: /Show answer for this clue|Hide answer/ });
+
+  it('shows the answer in the clue bar without filling the grid', async () => {
+    await startRandomPuzzle();
+    fireEvent.click(bulb());
+    expect(bar()).toHaveTextContent('Answer');
+    expect(bar()).toHaveTextContent('PLANT');
+    expect(bulb()).toHaveAttribute('aria-pressed', 'true');
+    expect(letters()).toBe('');
+  });
+
+  it('tapping it again hides the answer', async () => {
+    await startRandomPuzzle();
+    fireEvent.click(bulb());
+    fireEvent.click(bulb());
+    expect(bar()).toHaveTextContent('1 across · 5 letters');
+    expect(bulb()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('letters typed while the answer is on show get a corner flag', async () => {
+    await startRandomPuzzle();
+    fireEvent.click(bulb());
+    press('P');
+    fireEvent.click(bulb()); // hide it
+    press('L');
+    expect(squares()[SQUARE.P].querySelector('[data-flag]')).not.toBeNull();
+    expect(squares()[SQUARE.L].querySelector('[data-flag]')).toBeNull();
   });
 });
 
 describe('finishing the puzzle', () => {
-  const fillAll = (letters: string) => letters.split('').forEach((ch, i) => type(i, ch));
-
-  it('celebrates when every square is correct', async () => {
+  it('shows the results when every square is right, and the clock stops', async () => {
     await startRandomPuzzle();
     fillAll(SOLUTION);
-    expect(await screen.findByText(/puzzle complete/i)).toBeInTheDocument();
-    expect(screen.getByText(/You solved it in 0:0\d\./)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Puzzle complete!' })).toBeInTheDocument();
+    expect(sheet()).toHaveTextContent(/You solved today's puzzle in 0:0\d\./);
+    expect(screen.getByText(/^Solved in 0:0\d$/)).toBeInTheDocument();
+  });
+
+  it('names the theme for a themed puzzle', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    fillAll(SOLUTION);
+    expect(await screen.findByText(/You solved the History puzzle in/)).toBeInTheDocument();
   });
 
   it('accepts lowercase typing', async () => {
     await startRandomPuzzle();
     fillAll(SOLUTION.toLowerCase());
-    expect(await screen.findByText(/puzzle complete/i)).toBeInTheDocument();
+    expect(sheet()).toBeInTheDocument();
   });
 
-  it('does not celebrate while a square is wrong or empty', async () => {
+  it('does not finish while a square is wrong or empty', async () => {
     await startRandomPuzzle();
     fillAll(SOLUTION.slice(0, -1) + 'X');
-    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
-    type(SOLUTION.length - 1, '');
-    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
-    type(SOLUTION.length - 1, 'E');
-    expect(await screen.findByText(/puzzle complete/i)).toBeInTheDocument();
+    expect(sheet()).not.toBeInTheDocument();
+    pressDelete();
+    expect(sheet()).not.toBeInTheDocument();
+    keyDown('E');
+    expect(sheet()).toBeInTheDocument();
   });
 
-  it('"Review" closes the celebration and keeps the solved grid', async () => {
+  it('says "No help used" when no answer was shown', async () => {
     await startRandomPuzzle();
     fillAll(SOLUTION);
-    fireEvent.click(await screen.findByRole('button', { name: 'Review' }));
-    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
-    expect(squares().map((s) => s.value).join('')).toBe(SOLUTION);
+    expect(sheet()).toHaveTextContent('No help used');
   });
 
-  it('"Back to Home" returns to the home screen', async () => {
+  it('counts the answers shown, each clue once', async () => {
     await startRandomPuzzle();
-    fireEvent.click(screen.getByRole('button', { name: /back to home/i }));
-    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
-    expect(squares()).toHaveLength(0);
+    const bulb = () => screen.getByRole('button', { name: /Show answer for this clue|Hide answer/ });
+    fireEvent.click(bulb());
+    fireEvent.click(bulb());
+    fireEvent.click(bulb()); // the same clue, shown twice
+    tap(SQUARE.R_of_TREE);
+    fireEvent.click(bulb());
+    fillAll(SOLUTION);
+    expect(sheet()).toHaveTextContent('2Answers shown');
   });
 
-  it('a new puzzle after a finished one starts fresh, without the old celebration', async () => {
+  it('the keyboard goes away and letters can no longer be changed', async () => {
     await startRandomPuzzle();
     fillAll(SOLUTION);
-    await screen.findByText(/puzzle complete/i);
+    expect(screen.queryByLabelText('Letter keyboard')).not.toBeInTheDocument();
+    keyDown('Backspace');
+    expect(letters()).toBe(SOLUTION);
+  });
+
+  it('"Review puzzle" shows the solved grid, and "Results" brings the results back', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    fireEvent.click(screen.getByRole('button', { name: 'Review puzzle' }));
+    expect(sheet()).not.toBeInTheDocument();
+    expect(screen.getByText('Reviewing · tap any square or use the arrows')).toBeInTheDocument();
+    expect(letters()).toBe(SOLUTION);
+    expect(bar()).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Show answer/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Results' }));
+    expect(sheet()).toBeInTheDocument();
+  });
+
+  it('"Back to home" returns to the home screen, and the next puzzle starts fresh', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
     fireEvent.click(screen.getByRole('button', { name: 'Back to home' }));
-
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
-    expect(squares().every((s) => s.value === '')).toBe(true);
+    expect(sheet()).not.toBeInTheDocument();
+    expect(letters()).toBe('');
     expect(screen.getByText('0:00')).toBeInTheDocument();
-
-    // and finishing the new puzzle celebrates again
     fillAll(SOLUTION);
-    expect(await screen.findByText(/puzzle complete/i)).toBeInTheDocument();
-  });
-
-  it('going home with the top link after finishing also clears the celebration', async () => {
-    await startRandomPuzzle();
-    fillAll(SOLUTION);
-    fireEvent.click(await screen.findByRole('button', { name: 'Review' }));
-    fireEvent.click(screen.getByRole('button', { name: /← back to home/i }));
-    fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle" }));
-    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    expect(screen.queryByText(/puzzle complete/i)).not.toBeInTheDocument();
+    expect(sheet()).toBeInTheDocument();
   });
 
   it('"Reset" starts the same puzzle again without asking for a new one', async () => {
     await startRandomPuzzle();
-    type(SQUARE.P, 'P');
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer for this clue' }));
+    press('P');
     fireEvent.click(screen.getByRole('button', { name: /reset/i }));
-    expect(squares()[SQUARE.P]).toHaveValue('');
+    expect(letters()).toBe('');
+    expect(document.querySelector('[data-flag]')).toBeNull();
     expect(screen.getByText('0:00')).toBeInTheDocument();
-    expect(screen.getByText('Select a clue')).toBeInTheDocument();
+    expect(current()).toBe(SQUARE.P);
     expect(generateMock).toHaveBeenCalledTimes(1);
   });
 
-  it('the celebration says when the puzzle was solved without reveals', async () => {
+  it('"Share result" uses the phone\'s share menu', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
     await startRandomPuzzle();
     fillAll(SOLUTION);
-    expect(await screen.findByText(/no reveals/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Share result' }));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    expect(share.mock.calls[0][0].text).toMatch(
+      /^I solved today's AI Mini Crossword in 0:0\d with no help! https:\/\/ai-mini-crossword\.onrender\.com$/
+    );
+    // @ts-expect-error remove the stand-in again
+    delete navigator.share;
   });
 
-  it('the celebration counts how many answers were revealed', async () => {
+  it('"Share result" copies the text where there is no share menu', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
-    click(SQUARE.R_of_TREE);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
     fillAll(SOLUTION);
-    expect(await screen.findByText('💡 2 answers revealed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Share result' }));
+    expect(await screen.findByText('Copied, ready to paste')).toBeInTheDocument();
+    expect(writeText.mock.calls[0][0]).toContain('AI Mini Crossword');
   });
 
-  it('revealing the same answer twice counts once', async () => {
+  it('"Back to Home" at the top leaves the puzzle at any time', async () => {
     await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
-    click(SQUARE.A);
-    fillAll(SOLUTION);
-    expect(await screen.findByText('💡 1 answer revealed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Home' }));
+    expect(screen.getByRole('button', { name: "Play today's puzzle" })).toBeInTheDocument();
+    expect(squares()).toHaveLength(0);
+  });
+});
+
+describe('look and feel', () => {
+  it('the square being filled in and the rest of its word are highlighted', async () => {
+    await startRandomPuzzle();
+    tap(SQUARE.A); // PLANT across
+    expect(squares()[SQUARE.A]).toHaveClass('is-current');
+    expect(squares()[SQUARE.P]).toHaveClass('is-word');
+    expect(squares()[SQUARE.E_of_LEAF]).not.toHaveClass('is-word');
+
+    tap(SQUARE.L);
+    tap(SQUARE.L); // LEAF down
+    expect(squares()[SQUARE.E_of_LEAF]).toHaveClass('is-word');
+    expect(squares()[SQUARE.P]).not.toHaveClass('is-word');
+  });
+
+  it('every square says where it is and what it holds, for screen readers', async () => {
+    await startRandomPuzzle();
+    press('P');
+    expect(squares()[SQUARE.P]).toHaveAccessibleName('Row 1, column 1, P');
+    expect(squares()[SQUARE.L]).toHaveAccessibleName('Row 1, column 2, empty');
+    expect(screen.getAllByRole('button', { name: 'Black square' })[0]).toBeDisabled();
+  });
+
+  it('featured theme buttons keep their plain names for screen readers', () => {
+    render(<App />);
+    for (const name of ['History', 'Space', 'Art', 'Nature', 'Science']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('the privacy policy shows the contact address', () => {
+    window.location.hash = '#privacy';
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'aiminicrosswordpuzzle@gmail.com' })).toHaveAttribute(
+      'href',
+      'mailto:aiminicrosswordpuzzle@gmail.com'
+    );
+    window.location.hash = '';
+  });
+});
+
+describe('desktop layout', () => {
+  const asDesktop = () =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('phones get the keyboard and no clue lists', async () => {
+    await startRandomPuzzle();
+    expect(screen.getByLabelText('Letter keyboard')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Across clues' })).not.toBeInTheDocument();
+  });
+
+  it('wide screens list every clue next to the grid, and type with the real keyboard', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    expect(screen.getByRole('region', { name: 'Across clues' })).toHaveTextContent('It grows in a pot');
+    const down = screen.getByRole('region', { name: 'Down clues' });
+    expect(down).toHaveTextContent('It falls in autumn');
+    expect(down).toHaveTextContent('It has a trunk');
+    expect(screen.queryByLabelText('Letter keyboard')).not.toBeInTheDocument();
+    keyDown('P');
+    expect(letterIn(squares()[SQUARE.P])).toBe('P');
+  });
+
+  it('clicking a clue in the list jumps to it in the grid', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    const item = within(screen.getByRole('region', { name: 'Down clues' })).getByRole('button', {
+      name: /It has a trunk/,
+    });
+    fireEvent.click(item);
+    expect(item).toHaveAttribute('aria-current', 'true');
+    expect(bar()).toHaveTextContent('3 down · 4 letters');
+    keyDown('T');
+    expect(current()).toBe(SQUARE.R_of_TREE);
+  });
+
+  it('the list follows the clue being solved and marks answers shown', async () => {
+    asDesktop();
+    await startRandomPuzzle();
+    const across = screen.getByRole('region', { name: 'Across clues' });
+    const item = within(across).getByRole('button', { name: /It grows in a pot/ });
+    expect(item).toHaveAttribute('aria-current', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer for this clue' }));
+    expect(item).toHaveTextContent('(answer shown)');
   });
 });
 
@@ -574,7 +709,7 @@ describe('daily limits', () => {
 
     fireEvent.click(screen.getByRole('button', { name: "Play today's puzzle instead" }));
     await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
-    expect(generateMock).toHaveBeenLastCalledWith(null, 5);
+    expect(generateMock).toHaveBeenLastCalledWith(null, 7);
   });
 
   it('explains when everyone together has used up today\'s new puzzles', async () => {
@@ -688,161 +823,6 @@ describe('message helpers', () => {
   });
 });
 
-describe('look and feel', () => {
-  it('the square being filled in and the rest of its word are highlighted', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.A); // PLANT across
-    const cell = (i: number) => squares()[i].parentElement as HTMLElement;
-    expect(cell(SQUARE.A).style.background).toBe('rgb(196, 181, 253)'); // selected
-    expect(cell(SQUARE.P).style.background).toBe('rgb(237, 233, 254)'); // same word
-    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(255, 255, 255)'); // other word
-
-    click(SQUARE.L);
-    click(SQUARE.L); // LEAF down
-    expect(cell(SQUARE.E_of_LEAF).style.background).toBe('rgb(237, 233, 254)');
-    expect(cell(SQUARE.P).style.background).toBe('rgb(255, 255, 255)');
-  });
-
-  it('featured theme buttons keep their plain names for screen readers', () => {
-    render(<App />);
-    for (const name of ['History', 'Space', 'Art', 'Nature', 'Science']) {
-      expect(screen.getByRole('button', { name })).toBeInTheDocument();
-    }
-  });
-
-  it('the privacy policy shows the contact address', () => {
-    window.location.hash = '#privacy';
-    render(<App />);
-    expect(screen.getByRole('link', { name: 'aiminicrosswordpuzzle@gmail.com' })).toHaveAttribute(
-      'href',
-      'mailto:aiminicrosswordpuzzle@gmail.com'
-    );
-    window.location.hash = '';
-  });
-});
-
-describe('clue bar above the phone keyboard', () => {
-  const bar = () => screen.queryByRole('region', { name: 'Current clue' });
-
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('is not shown until the player starts typing', async () => {
-    await startRandomPuzzle();
-    expect(bar()).not.toBeInTheDocument();
-  });
-
-  it('while typing, the current clue is pinned above the keyboard', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    expect(bar()).toHaveTextContent('1 across · 5 letters');
-    expect(bar()).toHaveTextContent('It grows in a pot');
-  });
-
-  it('its arrows move to the next and previous clue and keep the cursor in the grid', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Next clue' }));
-    expect(bar()).toHaveTextContent('2 down · 4 letters');
-    expect(bar()).toHaveTextContent('It falls in autumn');
-    expect(squares()[SQUARE.L]).toHaveFocus();
-    fireEvent.click(screen.getByRole('button', { name: 'Previous clue' }));
-    expect(bar()).toHaveTextContent('It grows in a pot');
-    expect(squares()[SQUARE.P]).toHaveFocus();
-  });
-
-  it('its light bulb reveals the answer, which counts as a reveal', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal this answer' }));
-    expect(bar()).toHaveTextContent('1 across · Answer: PLANT');
-    expect(screen.queryByRole('button', { name: 'Reveal this answer' })).not.toBeInTheDocument();
-    expect(screen.getByText('revealed')).toBeInTheDocument();
-  });
-
-  it('goes away when the player stops typing', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    expect(bar()).toBeInTheDocument();
-    act(() => squares()[SQUARE.P].blur());
-    await waitFor(() => expect(bar()).not.toBeInTheDocument());
-  });
-
-  it('stays while the cursor hops from square to square', async () => {
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    type(SQUARE.P, 'P');
-    await new Promise((r) => setTimeout(r, 300));
-    expect(bar()).toBeInTheDocument();
-  });
-
-  describe('phone browsers (keyboard drawn over the page)', () => {
-    // a stand-in for Safari's description of the visible part of the page
-    function fakeSafariViewport(keyboardHeight: number) {
-      const viewport = Object.assign(new EventTarget(), {
-        height: window.innerHeight - keyboardHeight,
-        offsetTop: 0,
-      });
-      vi.stubGlobal('visualViewport', viewport);
-      return viewport;
-    }
-
-    it('sits just above the keyboard', async () => {
-      fakeSafariViewport(300);
-      await startRandomPuzzle();
-      click(SQUARE.P);
-      expect(bar()).toHaveStyle({ bottom: '300px' });
-    });
-
-    it('hides while the page scrolls, and comes back above the keyboard once it settles', async () => {
-      const viewport = fakeSafariViewport(300);
-      await startRandomPuzzle();
-      click(SQUARE.P);
-      // the player scrolls down by 120 pixels
-      viewport.offsetTop = 120;
-      act(() => {
-        viewport.dispatchEvent(new Event('scroll'));
-      });
-      expect(bar()).toHaveClass('is-moving');
-      await waitFor(() => expect(bar()).not.toHaveClass('is-moving'));
-      expect(bar()).toHaveStyle({ bottom: '180px' });
-    });
-  });
-
-  it("the iPhone app's bar does not hide while scrolling (nothing floats there)", async () => {
-    const viewport = Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0 });
-    vi.stubGlobal('visualViewport', viewport);
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    act(() => {
-      viewport.dispatchEvent(new Event('scroll'));
-    });
-    expect(bar()).not.toHaveClass('is-moving');
-  });
-
-  it('wide screens do not get the bar', async () => {
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockImplementation((query: string) => ({
-        matches: true,
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }))
-    );
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    expect(bar()).not.toBeInTheDocument();
-  });
-
-  it("squares switch off the phone's word suggestions and auto-correct", async () => {
-    await startRandomPuzzle();
-    const square = squares()[SQUARE.P];
-    expect(square).toHaveAttribute('autocomplete', 'off');
-    expect(square).toHaveAttribute('autocorrect', 'off');
-    expect(square).toHaveAttribute('spellcheck', 'false');
-  });
-});
-
 describe("Android's Back button", () => {
   it('on the home screen it is left to the phone (the app is put away)', () => {
     render(<App />);
@@ -871,62 +851,7 @@ describe("Android's Back button", () => {
   });
 });
 
-describe('desktop layout', () => {
-  const asDesktop = () =>
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockImplementation((query: string) => ({
-        matches: true,
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }))
-    );
-
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('phones do not get the clue lists', async () => {
-    await startRandomPuzzle();
-    expect(screen.queryByRole('region', { name: 'Across clues' })).not.toBeInTheDocument();
-  });
-
-  it('wide screens list every clue next to the grid', async () => {
-    asDesktop();
-    await startRandomPuzzle();
-    const across = screen.getByRole('region', { name: 'Across clues' });
-    const down = screen.getByRole('region', { name: 'Down clues' });
-    expect(across).toHaveTextContent('It grows in a pot');
-    expect(down).toHaveTextContent('It falls in autumn');
-    expect(down).toHaveTextContent('It has a trunk');
-    expect(document.querySelectorAll('.clue-list-item')).toHaveLength(3);
-  });
-
-  it('clicking a clue in the list jumps to it in the grid', async () => {
-    asDesktop();
-    await startRandomPuzzle();
-    const item = screen.getByRole('button', { name: /It has a trunk/ });
-    fireEvent.click(item);
-    expect(item).toHaveAttribute('aria-current', 'true');
-    expect(screen.getByText(/Down • 4 letters/)).toBeInTheDocument();
-    // typing now fills TREE downwards from its first square
-    type(SQUARE.T, 'T');
-    expect(squares()[SQUARE.R_of_TREE]).toHaveFocus();
-  });
-
-  it('the list follows the square selected in the grid and marks revealed clues', async () => {
-    asDesktop();
-    await startRandomPuzzle();
-    click(SQUARE.P);
-    const item = screen.getByRole('button', { name: /It grows in a pot/ });
-    expect(item).toHaveAttribute('aria-current', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
-    expect(item).toHaveTextContent('(revealed)');
-  });
-});
-
 describe('usage statistics', () => {
-  const fillAll = (letters: string) => letters.split('').forEach((ch, i) => type(i, ch));
-
   it("starting today's puzzle is counted as a daily puzzle", async () => {
     await startRandomPuzzle();
     expect(trackMock).toHaveBeenCalledWith({ name: 'puzzle_started', puzzle_type: 'daily', cached: undefined });
@@ -961,8 +886,7 @@ describe('usage statistics', () => {
 
   it('finishing is counted once, with the time and the number of reveals', async () => {
     await startRandomPuzzle();
-    click(SQUARE.P);
-    fireEvent.click(screen.getByRole('button', { name: 'Reveal answer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer for this clue' }));
     fillAll(SOLUTION);
     await screen.findByText(/puzzle complete/i);
     const completed = trackMock.mock.calls.filter(([e]) => e.name === 'puzzle_completed');

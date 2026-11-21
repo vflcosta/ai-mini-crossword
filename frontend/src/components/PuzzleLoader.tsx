@@ -24,7 +24,7 @@ export function PuzzleLoader({ label }: PuzzleLoaderProps) {
       <div className="grid-wrapper" aria-hidden>
         <div
           className="skeleton-grid"
-          style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 48px)` }}
+          style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 44px)` }}
         >
           {cells.map((_, i) => (
             <div

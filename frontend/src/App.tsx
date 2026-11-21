@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
-import { CrosswordGrid } from "./components/CrosswordGrid";
+import { useState, useEffect, useRef } from "react";
 import { backendToCrossword } from "./utils/transform";
 import { generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
 import { HeroCrossword } from "./components/HeroCrossword";
-import { ClueLists } from "./components/ClueLists";
-import { useIsDesktop, useKeyboardInset } from "./hooks";
-import { TypingClueBar } from "./components/TypingClueBar";
+import { useIsDesktop } from "./hooks";
+import { Game } from "./components/Game";
 import { onAndroidBack } from "./native";
 import { describePuzzle, track, type PuzzleType } from "./analytics";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { PuzzleLoader } from "./components/PuzzleLoader";
-import { Crossword, Clue } from "./types/crossword";
+import type { Crossword } from "./types/crossword";
 
 const DAILY_LABEL = "Today's Knowledge Mix";
 
@@ -68,36 +66,14 @@ export default function App() {
   const [view, setView] = useState<"home" | "playing">("home");
   const [theme, setTheme] = useState("");
   const [currentCrossword, setCurrentCrossword] = useState<Crossword | null>(null);
-  const [userAnswers, setUserAnswers] = useState<string[][]>([]);
-  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
-  const [currentClue, setCurrentClue] = useState<Clue | null>(null);
-  const [currentDirection, setCurrentDirection] = useState<"across" | "down">("across");
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [completionTime, setCompletionTime] = useState<number | null>(null);
-  const [showCompletion, setShowCompletion] = useState(false);
+  // a new number for every puzzle, so the game screen starts fresh
+  const [gameId, setGameId] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [revealedClues, setRevealedClues] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
   const [newPuzzlesLeft, setNewPuzzlesLeft] = useState<number | null>(null);
   const [loadingLabel, setLoadingLabel] = useState("");
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
-  const { inset: keyboardInset, moving: pageMoving } = useKeyboardInset();
-  // true while the cursor is in the grid (on a phone: while the keyboard is open)
-  const [typing, setTyping] = useState(false);
-  const stopTyping = useRef<number | undefined>(undefined);
-  const handleGridFocus = () => {
-    window.clearTimeout(stopTyping.current);
-    setTyping(true);
-  };
-  // the cursor hops from square to square, so wait a moment before deciding
-  // the player has really stopped typing
-  const handleGridBlur = () => {
-    window.clearTimeout(stopTyping.current);
-    stopTyping.current = window.setTimeout(() => setTyping(false), 200);
-  };
-  useEffect(() => () => window.clearTimeout(stopTyping.current), []);
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
   const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
@@ -126,64 +102,15 @@ export default function App() {
   };
   useEffect(() => onAndroidBack(() => backRef.current()), []);
 
-  // timer
-  useEffect(() => {
-    let id: number | undefined;
-    if (isTimerRunning) {
-      id = window.setInterval(() => setElapsedTime((t) => t + 1), 1000);
-    }
-    return () => {
-      if (id) window.clearInterval(id);
-    };
-  }, [isTimerRunning]);
-
-  // auto-finish check
-  useEffect(() => {
-    if (!currentCrossword || !isTimerRunning) return;
-    let complete = true;
-    for (let r = 0; r < currentCrossword.size; r++) {
-      for (let c = 0; c < currentCrossword.size; c++) {
-        const cell = currentCrossword.grid[r][c];
-        if (!cell.isBlack && userAnswers[r][c] !== cell.letter) {
-          complete = false;
-          break;
-        }
-      }
-    }
-    if (complete) {
-      setIsTimerRunning(false);
-      setCompletionTime(elapsedTime);
-      setShowCompletion(true);
-      track({
-        name: "puzzle_completed",
-        puzzle_type: puzzleType,
-        seconds: elapsedTime,
-        reveals: revealedClues.size,
-      });
-    }
-  }, [userAnswers, currentCrossword, isTimerRunning, elapsedTime]);
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
-
   const startGame = (cw: Crossword, label: string) => {
     setCurrentCrossword(cw);
-    setUserAnswers(Array.from({ length: cw.size }, () => Array(cw.size).fill("")));
-    setSelectedCell(null);
-    setCurrentClue(null);
-    setCurrentDirection("across");
-    setElapsedTime(0);
-    setIsTimerRunning(true);
-    setRevealedClues(new Set());
-    // every puzzle starts clean: no celebration left over from the last one
-    setShowCompletion(false);
-    setCompletionTime(null);
+    setGameId((n) => n + 1);
     setView("playing");
     console.log(`Generated "${label}" crossword`);
   };
+
+  const handleFinished = ({ seconds, reveals }: { seconds: number; reveals: number }) =>
+    track({ name: "puzzle_completed", puzzle_type: puzzleType, seconds, reveals });
 
   // Generate a puzzle for the given theme text (empty = random mix).
   // The theme is passed in explicitly so callers never depend on React state
@@ -227,138 +154,7 @@ export default function App() {
 
   const handleRandom = () => generate("");
 
-  // find clue for cell & direction
-  const findClueForCell = (
-    row: number,
-    col: number,
-    dir: "across" | "down"
-  ): Clue | null => {
-    if (!currentCrossword) return null;
-    const list = dir === "across" ? currentCrossword.clues.across : currentCrossword.clues.down;
-    for (const clue of list) {
-      if (dir === "across") {
-        if (clue.row === row && col >= clue.col && col < clue.col + clue.answer.length) {
-          return clue;
-        }
-      } else {
-        if (clue.col === col && row >= clue.row && row < clue.row + clue.answer.length) {
-          return clue;
-        }
-      }
-    }
-    return null;
-  };
-
-  const handleCellClick = (row: number, col: number) => {
-    if (selectedCell?.row === row && selectedCell?.col === col) {
-      // toggle direction if clicking same cell
-      const nextDir = currentDirection === "across" ? "down" : "across";
-      setCurrentDirection(nextDir);
-      setCurrentClue(findClueForCell(row, col, nextDir));
-    } else {
-      // try current direction first
-      const clue = findClueForCell(row, col, currentDirection);
-      if (clue) {
-        setCurrentClue(clue);
-      } else {
-        // fallback to the other
-        const other = currentDirection === "across" ? "down" : "across";
-        const otherClue = findClueForCell(row, col, other);
-        if (otherClue) {
-          setCurrentDirection(other);
-          setCurrentClue(otherClue);
-        }
-      }
-    }
-    setSelectedCell({ row, col });
-  };
-
-  const handleAnswerChange = (row: number, col: number, value: string) => {
-    const next = userAnswers.map((r) => [...r]);
-    next[row][col] = value.toUpperCase();
-    setUserAnswers(next);
-  };
-
-  const getAllClues = (): Clue[] => {
-    if (!currentCrossword) return [];
-    return [...currentCrossword.clues.across, ...currentCrossword.clues.down].sort((a, b) => {
-      if (a.number !== b.number) return a.number - b.number;
-      // across first if same number
-      return a.direction === "across" ? -1 : 1;
-    });
-  };
-
-  // Where the cursor goes when the player moves to a clue: its first empty
-  // square, so letters already filled in by crossing words are not in the way
-  // (or its first square when the whole word is filled).
-  const goToClue = (clue: Clue) => {
-    const dr = clue.direction === "down" ? 1 : 0;
-    const dc = clue.direction === "down" ? 0 : 1;
-    let target = { row: clue.row, col: clue.col };
-    for (let i = 0; i < clue.answer.length; i++) {
-      const row = clue.row + dr * i;
-      const col = clue.col + dc * i;
-      if (!userAnswers[row]?.[col]) {
-        target = { row, col };
-        break;
-      }
-    }
-    setCurrentClue(clue);
-    setCurrentDirection(clue.direction);
-    setSelectedCell(target);
-  };
-
-  const handlePrevClue = () => {
-    if (!currentClue) return;
-    const all = getAllClues();
-    const i = all.findIndex(
-      (c) => c.number === currentClue.number && c.direction === currentClue.direction
-    );
-    if (i > 0) {
-      const prev = all[i - 1];
-      goToClue(prev);
-    }
-  };
-
-  const handleSelectClue = (clue: Clue) => goToClue(clue);
-
-  const handleNextClue = () => {
-    if (!currentClue) return;
-    const all = getAllClues();
-    const i = all.findIndex(
-      (c) => c.number === currentClue.number && c.direction === currentClue.direction
-    );
-    if (i < all.length - 1) {
-      const nxt = all[i + 1];
-      goToClue(nxt);
-    }
-  };
-
-  const handleBackHome = () => {
-    setTyping(false);
-    setView("home");
-    setIsTimerRunning(false);
-    setShowCompletion(false);
-  };
-
-  // start the same puzzle again: empty grid, timer and reveals back to zero
-  // (no new puzzle is requested, so it costs nothing and needs no network)
-  const handleReset = () => {
-    if (currentCrossword) startGame(currentCrossword, currentCrossword.theme);
-    setShowCompletion(false);
-    setCompletionTime(null);
-  };
-
-  const clueKey = (c: Clue) => `${c.number}-${c.direction}`;
-
-  const revealClue = () => {
-    if (!currentClue) return;
-    setRevealedClues((prev) => {
-      const n = new Set(prev);
-      n.add(clueKey(currentClue));
-      return n;
-    });
-  };
+  const handleBackHome = () => setView("home");
 
   return (
     <div className="app-bg">
@@ -388,7 +184,7 @@ export default function App() {
                 {DAILY_LABEL}
               </h2>
               <p className="daily-text">
-                A fresh 5×5 puzzle every day, with topics from all over. Takes about 5 minutes.
+                A fresh 7×7 puzzle every day, with topics from all over. Takes about 5 minutes.
               </p>
               <button type="button" className="primary-btn primary-btn-large" onClick={handleRandom}>
                 Play today's puzzle
@@ -496,8 +292,8 @@ export default function App() {
                     2
                   </span>
                   <span>
-                    <strong>Solve it in minutes.</strong> A 5×5 mini crossword, made fresh by AI.
-                    Stuck? Reveal an answer and keep going.
+                    <strong>Solve it in minutes.</strong> A 7×7 mini crossword, made fresh by AI.
+                    Stuck? Show an answer and keep going.
                   </span>
                 </li>
                 <li>
@@ -519,132 +315,15 @@ export default function App() {
         )}
 
         {view === "playing" && currentCrossword && (
-          <div className="play-wrapper play-game">
-            <div className="play-topbar">
-              <button className="link-btn" onClick={handleBackHome}>
-                ← Back to Home
-              </button>
-              <div className="timer-box">
-                <span className="timer-icon" aria-hidden>
-                  ⏱
-                </span>
-                <span className="timer-text">{formatTime(elapsedTime)}</span>
-              </div>
-              <button className="link-btn" onClick={handleReset}>
-                ⟲ Reset
-              </button>
-            </div>
-
-            <div className="grid-wrapper" onFocus={handleGridFocus} onBlur={handleGridBlur}>
-              <CrosswordGrid
-                grid={currentCrossword.grid}
-                userAnswers={userAnswers}
-                selectedCell={selectedCell}
-                direction={currentDirection}
-                onCellClick={handleCellClick}
-                onAnswerChange={handleAnswerChange}
-              />
-            </div>
-
-            <div className="play-side">
-            <div className="clue-card">
-              {currentClue ? (
-                <>
-                  <div className="clue-header">
-                    <span className="clue-pill">
-                      {currentClue.number} {currentDirection}
-                    </span>
-                    {revealedClues.has(clueKey(currentClue)) && (
-                      <span className="clue-revealed">revealed</span>
-                    )}
-                  </div>
-                  <h3 className="clue-title">{currentClue.clue}</h3>
-                  <p className="clue-meta">
-                    {currentClue.direction === "across" ? "Across" : "Down"} •{" "}
-                    {currentClue.answer.length} letters
-                  </p>
-
-                  <div className="answer-block">
-                    <p className="answer-label">ANSWER</p>
-                    <p className="answer-value">
-                      {revealedClues.has(clueKey(currentClue))
-                        ? currentClue.answer
-                        : currentClue.answer.replace(/./g, "•")}
-                    </p>
-                    {!revealedClues.has(clueKey(currentClue)) && (
-                      <button className="reveal-btn" onClick={revealClue}>
-                        Reveal answer
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="clue-nav">
-                    <button className="secondary-btn small" onClick={handlePrevClue}>
-                      ← Previous
-                    </button>
-                    <button className="secondary-btn small" onClick={handleNextClue}>
-                      Next →
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="clue-title">Select a clue</h3>
-                  <p className="clue-meta">Click on a numbered cell to see its clue</p>
-                </>
-              )}
-            </div>
-            {isDesktop && (
-              <ClueLists
-                across={currentCrossword.clues.across}
-                down={currentCrossword.clues.down}
-                current={currentClue}
-                revealed={revealedClues}
-                onSelect={handleSelectClue}
-              />
-            )}
-            </div>
-
-            {!isDesktop && typing && currentClue && !showCompletion && (
-              <>
-                {/* room to scroll, so the bar never hides the end of the page */}
-                <div className="typing-bar-spacer" style={{ height: keyboardInset + 72 }} />
-                <TypingClueBar
-                  clue={currentClue}
-                  revealed={revealedClues.has(clueKey(currentClue))}
-                  keyboardInset={keyboardInset}
-                  hidden={pageMoving}
-                  onPrev={handlePrevClue}
-                  onNext={handleNextClue}
-                  onReveal={revealClue}
-                />
-              </>
-            )}
-
-            {showCompletion && (
-              <div className="modal-backdrop" onClick={() => setShowCompletion(false)}>
-                <div className="modal" onClick={(e) => e.stopPropagation()}>
-                  <h2>🎉 Puzzle complete!</h2>
-                  <p>You solved it in {formatTime(completionTime || 0)}.</p>
-                  <p className="reveal-summary">
-                    {revealedClues.size === 0
-                      ? "🌟 No reveals – solved all on your own!"
-                      : `💡 ${revealedClues.size} ${
-                          revealedClues.size === 1 ? "answer" : "answers"
-                        } revealed`}
-                  </p>
-                  <div className="modal-actions">
-                    <button className="primary-btn" onClick={handleBackHome}>
-                      Back to home
-                    </button>
-                    <button className="secondary-btn" onClick={() => setShowCompletion(false)}>
-                      Review
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <Game
+            key={gameId}
+            crossword={currentCrossword}
+            label={currentCrossword.theme}
+            isDaily={puzzleType === "daily"}
+            isDesktop={isDesktop}
+            onBack={handleBackHome}
+            onFinished={handleFinished}
+          />
         )}
       </div>
     </div>

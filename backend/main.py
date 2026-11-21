@@ -99,8 +99,9 @@ LIMIT_MESSAGES = {
 # ---------------------------------------------------------
 class GenerateRequest(BaseModel):
     theme: Optional[str] = Field(default=None, max_length=80)
-    # a mini crossword: at least 3x3, at most 10x10 (5x5 is the classic mini)
-    size: int = Field(default=5, ge=3, le=10)
+    # a mini crossword: at least 3x3, at most 10x10. The game asks for 7x7;
+    # the first iPhone app version (1.0) still asks for 5x5.
+    size: int = Field(default=7, ge=3, le=10)
 
 # ---------------------------------------------------------
 # Routes

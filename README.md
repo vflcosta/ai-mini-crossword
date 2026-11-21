@@ -5,7 +5,7 @@ learn something new every day.
 
 Play it at **https://ai-mini-crossword.onrender.com**
 
-AI Mini Crossword makes 5x5 newspaper-style mini crosswords with Claude. Play
+AI Mini Crossword makes 7x7 mini crosswords with Claude. Play
 today's puzzle, tap a featured theme, or type any topic you are curious about.
 
 
@@ -15,7 +15,7 @@ today's puzzle, tap a featured theme, or type any topic you are curious about.
 * **Featured themes** – History, Space, Art, Nature and Science, one tap each
 * **Any theme** – type a topic and get a puzzle about it
 * **Themed puzzles teach the theme** – every answer in a themed puzzle is about that theme
-* **Newspaper-style daily grid** – today's puzzle is a dense 5x5 where every letter belongs to an across and a down word
+* **One clue bar and the game's own keyboard** – the clue sits above an A–Z keyboard on every phone, so no autocorrect or word suggestions get in the way
 * **Made for phones and desktop** – one column on phones, grid plus full clue lists on wide screens
 * **Daily limits** – each puzzle is made once a day and shared, which keeps the AI cost low
 * **Private by design** – no accounts, no cookies, and the themes players type are never put in the statistics
@@ -26,27 +26,30 @@ today's puzzle, tap a featured theme, or type any topic you are curious about.
 ## Example puzzle (theme: Music)
 
 ```
-R E S T ■
-A ■ C ■ B
-P I A N O
-■ ■ L ■ W
-■ K E Y ■
+T R U M P E T
+U ■ ■ ■ ■ ■ E
+B L U E S ■ M
+A ■ ■ ■ C ■ P
+■ ■ P I A N O
+■ ■ ■ ■ L ■ ■
+■ ■ O P E R A
 ```
 
 | Across | Clue | Answer |
 | ------ | ---- | ------ |
-| 1 | A silence written into music | REST |
-| 4 | Instrument with 88 black and white keys | PIANO |
-| 5 | C major, for one | KEY |
+| 1 | Brass instrument with three valves | TRUMPET |
+| 3 | Sad music from the Deep South | BLUES |
+| 5 | Instrument with 88 keys | PIANO |
+| 6 | Drama told entirely in song | OPERA |
 
 | Down | Clue | Answer |
 | ---- | ---- | ------ |
-| 1 | Rhythmic spoken-word genre | RAP |
-| 2 | Do-re-mi sequence of notes | SCALE |
-| 3 | Violinist's stick | BOW |
+| 1 | Largest brass instrument | TUBA |
+| 2 | Speed of a piece of music | TEMPO |
+| 4 | Do, re, mi and so on | SCALE |
 
-Every answer in a themed puzzle is about the theme. Today's puzzle (no theme)
-uses a dense grid instead. See "How a puzzle is built" below.
+Every answer is one of the AI's words, so a themed puzzle is about the theme.
+See "How a puzzle is built" below.
 
 
 ## API overview
@@ -60,29 +63,33 @@ Returns a puzzle. Without a theme it returns today's puzzle.
 ```json
 {
   "theme": "music",
-  "size": 5
+  "size": 7
 }
 ```
 
-#### Example response
+`size` is optional and defaults to 7 (the game's 7x7 grid).
+
+#### Example response (shortened)
 
 ```json
 {
   "grid": [
-    ["R", "E", "S", "T", "#"],
-    ["A", "#", "C", "#", "B"],
-    ["P", "I", "A", "N", "O"],
-    ["#", "#", "L", "#", "W"],
-    ["#", "K", "E", "Y", "#"]
+    ["T", "R", "U", "M", "P", "E", "T"],
+    ["U", "#", "#", "#", "#", "#", "E"],
+    ["B", "L", "U", "E", "S", "#", "M"],
+    ["A", "#", "#", "#", "C", "#", "P"],
+    ["#", "#", "P", "I", "A", "N", "O"],
+    ["#", "#", "#", "#", "L", "#", "#"],
+    ["#", "#", "O", "P", "E", "R", "A"]
   ],
   "clues": {
     "across": [
-      { "number": 1, "clue": "A silence written into music", "answer": "REST" },
-      { "number": 4, "clue": "Instrument with 88 black and white keys", "answer": "PIANO" }
+      { "number": 1, "clue": "Brass instrument with three valves", "answer": "TRUMPET" },
+      { "number": 3, "clue": "Sad music from the Deep South", "answer": "BLUES" }
     ],
     "down": [
-      { "number": 1, "clue": "Rhythmic spoken-word genre", "answer": "RAP" },
-      { "number": 2, "clue": "Do-re-mi sequence of notes", "answer": "SCALE" }
+      { "number": 1, "clue": "Largest brass instrument", "answer": "TUBA" },
+      { "number": 2, "clue": "Speed of a piece of music", "answer": "TEMPO" }
     ]
   },
   "meta": {
@@ -160,7 +167,7 @@ ai-mini-crossword/
 │   ├── main.py                  # the API
 │   ├── utils/
 │   │   ├── crossword_gen.py     # asks Claude for words and clues, builds the puzzle
-│   │   ├── dense_fill.py        # fills the 5x5 newspaper-style grid
+│   │   ├── dense_fill.py        # fills the 5x5 grid for app version 1.0
 │   │   └── puzzle_service.py    # today's puzzles and the daily limits
 │   ├── data/words.txt           # common English words for the fill
 │   └── tests/
@@ -219,26 +226,22 @@ asking you to remove the marker. From then on the test protects the fix.
 
 ## How a puzzle is built
 
-**Themed puzzles** (a featured theme or a typed topic): every answer is about
-the theme, so the puzzle teaches it.
+Every puzzle is a **7x7** grid, for today's puzzle and for themes alike, made
+with one AI call:
 
-1. The AI is asked for about 40 words on the theme, each with a clue that
-   teaches or recalls a fact about it.
-2. The words are laid out crossing each other in a 5x5 grid (usually 5 or 6
-   answers). Squares no word uses are black.
+1. The AI is asked for about 40 words (on the theme, or on mixed topics for
+   today's puzzle), each with a clue of at most about 90 characters that
+   teaches or recalls a fact.
+2. The words are laid out crossing each other in the 7x7 grid (usually 7 or 8
+   answers). Squares no word uses are black. Every answer is one of the AI's
+   words, so a themed puzzle teaches the theme.
+3. If fewer than 6 words fit, the AI is asked once more for extra words. If the
+   AI is offline, a small built-in puzzle is used.
 
-**Today's Knowledge Mix** (no theme): a dense newspaper-style grid.
-
-1. The AI is asked for about 30 words and clues on mixed topics.
-2. A 5x5 grid is filled so every letter belongs to an across word and a down
-   word: the AI's words go in where they fit and common English words from
-   `backend/data/words.txt` fill the rest.
-3. The AI writes clues for those extra words.
-
-Why two layouts: a dense grid can hold only about 4 themed answers out of 10,
-because the others must be whatever words fit the crossings. If too few themed
-words fit, or the AI is offline, the puzzle falls back to the other layout or
-to a built-in puzzle.
+The first iPhone app version (1.0) still asks for 5x5 puzzles, so the backend
+keeps making those too: themed ones in the same crossing layout, and today's
+puzzle as a dense newspaper-style grid filled with common English words from
+`backend/data/words.txt`.
 
 Each puzzle is kept for the rest of the day and shared: "Today's Knowledge Mix"
 (no theme) is made once a day, and so is each theme. Only brand-new puzzles

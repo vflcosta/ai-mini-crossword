@@ -37,6 +37,11 @@ logger = logging.getLogger("crossword")
 
 ALPHABETIC = re.compile(r"^[A-Z]+$")
 
+# The game shows the clue in one bar above the keyboard, at most 3 lines.
+# The AI is asked for clues up to CLUE_TARGET_CHARS; longer ones are dropped.
+CLUE_TARGET_CHARS = 90
+CLUE_MAX_CHARS = 100
+
 
 # ---------- filters ----------
 
@@ -82,6 +87,8 @@ def _sanitize_clues(raw: dict, size: int) -> dict:
             clue_text = (cl.get("clue") or "").strip()
             if not clue_text or clue_text.lower() in BAD_PLACEHOLDERS:
                 continue
+            if len(clue_text) > CLUE_MAX_CHARS:
+                continue
 
             ans = (cl.get("answer") or "").strip().upper()
             ans = re.sub(r"[^A-Z]", "", ans)
@@ -126,6 +133,7 @@ RULES:
 - NO fragments or stems (e.g. "INDEP") and NO misspellings.
 - NO multi-word, NO punctuation, NO numbers.
 - Clues should clearly define the answer.
+- Each clue is at most {CLUE_TARGET_CHARS} characters long (about 15 words).
 - Prefer common / kid-friendly words.
 
 FORMAT:
@@ -308,6 +316,15 @@ _EXTRA_TRIES = 60  # extra word orders to try per puzzle (about 0.1s in total)
 _THEMED_TRIES = 400
 # A themed puzzle needs at least this many answers to be worth playing.
 MIN_THEMED_WORDS = 4
+# The 7x7 puzzles (the size the game now uses) need at least this many.
+MIN_WORDS_7X7 = 6
+# Search effort for 7x7 layouts (about 0.7s in total; more tries rarely
+# fit more words in a 7x7).
+_TRIES_7X7 = 200
+
+
+def _min_words(size: int) -> int:
+    return MIN_WORDS_7X7 if size >= 7 else MIN_THEMED_WORDS
 
 
 class _Board:
@@ -451,27 +468,59 @@ def build_themed_crossword(words: List[Dict[str, str]], size: int):
     (A dense newspaper-style grid cannot do this: only about 4 of its 10
     answers can be themed, the rest must be whatever words fit the crossings.)
     """
-    grid, clues = build_crossword_from_words(words, size=size, tries=_THEMED_TRIES)
-    if len(clues["across"]) + len(clues["down"]) < MIN_THEMED_WORDS:
+    tries = _TRIES_7X7 if size >= 7 else _THEMED_TRIES
+    grid, clues = build_crossword_from_words(words, size=size, tries=tries)
+    if len(clues["across"]) + len(clues["down"]) < _min_words(size):
         return None
     return grid, clues
 
 
-def generate_crossword(theme: Optional[str] = None, size: int = 5):
+GAME_SIZE = 7  # the size the game asks for (7x7)
+
+
+def _generate_7x7(theme: Optional[str], size: int, raw: dict, used_fallback: bool) -> dict:
+    """
+    7x7 puzzles, with or without a theme: every answer is one of the AI's
+    words, each with its own clue, crossing each other; unused squares are
+    black. If too few words fit, the AI is asked once more for extra words.
+    """
+    words_pool = raw["across"] + raw["down"]
+    if not used_fallback:
+        built = build_themed_crossword(words_pool, size)
+        if built is None:
+            logger.warning("Too few words fit the 7x7 grid; asking the AI for more")
+            more = generate_clues(theme, size, num=40)
+            if more != _fallback():
+                words_pool = words_pool + more["across"] + more["down"]
+                built = build_themed_crossword(words_pool, size)
+        if built is not None:
+            grid, final_clues = built
+            return {"grid": grid, "clues": final_clues, "fallback": False}
+    grid, final_clues = build_crossword_from_words(words_pool, size=size, tries=_TRIES_7X7)
+    return {"grid": grid, "clues": final_clues, "fallback": used_fallback}
+
+
+def generate_crossword(theme: Optional[str] = None, size: int = GAME_SIZE):
     """
     Returns {"grid", "clues", "fallback"}. "fallback" is True when the AI was
     unavailable and the built-in words were used (such a puzzle should not be
     kept and shown to everyone for the rest of the day).
 
-    - With a theme: every answer is about the theme (crossing layout).
-    - Without a theme (today's mix): a dense newspaper-style grid.
+    - 7x7 (what the game uses), with or without a theme: only the AI's words,
+      crossing each other (one AI call).
+    - 5x5 (still asked for by the first iPhone app version, 1.0):
+      with a theme, every answer is about the theme (crossing layout);
+      without a theme (today's mix), a dense newspaper-style grid.
     """
     # ask for plenty of words: the more there are, the fuller the grid
-    raw = generate_clues(theme, size, num=40 if theme else 30)
+    raw = generate_clues(theme, size, num=40 if (theme or size >= 7) else 30)
     words_pool = raw["across"] + raw["down"]
     if not words_pool:
         return {"error": "Could not generate clues."}
     used_fallback = raw == _fallback()
+
+    if size > MAX_DENSE_SIZE:
+        return _generate_7x7(theme, size, raw, used_fallback)
 
     # 1) themed puzzle: only the AI's themed words, crossing each other
     if theme and not used_fallback:
