@@ -16,6 +16,7 @@ import {
   type Pos,
 } from "../utils/play";
 import { ClueLists } from "./ClueLists";
+import { shareResult } from "../native";
 
 /**
  * The game screen, as designed in Claude Design ("single clue panel"):
@@ -209,17 +210,14 @@ export function Game({ crossword: cw, label, isDaily, isDesktop, onBack, onFinis
   };
 
   const share = async () => {
-    const text = shareText(label, isDaily, elapsed, shownEver.size);
-    try {
-      if (navigator.share) {
-        await navigator.share({ text });
-      } else {
-        await navigator.clipboard.writeText(text);
-        setShareNote("Copied, ready to paste");
-      }
-    } catch {
-      // the player closed the share menu: nothing to do
-    }
+    const outcome = await shareResult(shareText(label, isDaily, elapsed, shownEver.size));
+    setShareNote(
+      outcome === "copied"
+        ? "Copied, ready to paste"
+        : outcome === "failed"
+          ? "Couldn't share this time. Please try again."
+          : ""
+    );
   };
 
   const helpCount = shownEver.size;

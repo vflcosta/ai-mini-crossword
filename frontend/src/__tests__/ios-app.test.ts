@@ -123,6 +123,13 @@ describe('Android app setup', () => {
     expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorApp');
   });
 
+  it('the share add-on is installed and packed into both apps', () => {
+    expect(JSON.parse(read('package.json')).dependencies).toHaveProperty('@capacitor/share');
+    expect(read('android/capacitor.settings.gradle')).toContain(':capacitor-share');
+    expect(read('android/app/capacitor.build.gradle')).toContain(':capacitor-share');
+    expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorShare');
+  });
+
   it('the Google Play signing key can never be added to the code', () => {
     const ignored = read('android/.gitignore');
     expect(ignored).toContain('*.jks');

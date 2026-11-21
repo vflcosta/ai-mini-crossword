@@ -22,7 +22,10 @@ vi.mock('@capacitor/app', () => ({
   },
 }));
 
-import { onAndroidBack, setupNativeApp } from '../native';
+const shareMock = vi.hoisted(() => ({ share: vi.fn(async () => ({})) }));
+vi.mock('@capacitor/share', () => ({ Share: shareMock }));
+
+import { onAndroidBack, setupNativeApp, shareResult } from '../native';
 
 beforeEach(() => {
   platformMock.getPlatform.mockReturnValue('web');
@@ -106,5 +109,62 @@ describe('Android Back button', () => {
     stop();
     await settle();
     expect(appMock.remove).toHaveBeenCalled();
+  });
+});
+
+describe('sharing a result', () => {
+  const setShare = (value: unknown) =>
+    Object.defineProperty(navigator, 'share', { value, configurable: true, writable: true });
+  const setClipboard = (writeText: unknown) =>
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+  beforeEach(() => {
+    shareMock.share.mockReset().mockResolvedValue({});
+    setShare(undefined);
+    setClipboard(vi.fn().mockResolvedValue(undefined));
+  });
+
+  it("the iPhone and Android apps open the phone's own share menu", async () => {
+    for (const platform of ['ios', 'android']) {
+      platformMock.getPlatform.mockReturnValue(platform);
+      expect(await shareResult('I solved it!')).toBe('shared');
+    }
+    expect(shareMock.share).toHaveBeenCalledTimes(2);
+    expect(shareMock.share).toHaveBeenCalledWith({ text: 'I solved it!', dialogTitle: 'Share your result' });
+  });
+
+  it('in the apps, closing the share menu is not an error and copies nothing', async () => {
+    platformMock.getPlatform.mockReturnValue('android');
+    shareMock.share.mockRejectedValue(new Error('Share canceled'));
+    const writeText = vi.fn();
+    setClipboard(writeText);
+    expect(await shareResult('I solved it!')).toBe('cancelled');
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('in the apps, if the share menu cannot open, the text is copied instead', async () => {
+    platformMock.getPlatform.mockReturnValue('ios');
+    shareMock.share.mockRejectedValue(new Error('Not available'));
+    expect(await shareResult('I solved it!')).toBe('copied');
+  });
+
+  it("the website uses the browser's share menu where there is one", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    setShare(share);
+    expect(await shareResult('I solved it!')).toBe('shared');
+    expect(share).toHaveBeenCalledWith({ text: 'I solved it!' });
+    expect(shareMock.share).not.toHaveBeenCalled();
+  });
+
+  it('the website copies the text when the browser has no share menu', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+    expect(await shareResult('I solved it!')).toBe('copied');
+    expect(writeText).toHaveBeenCalledWith('I solved it!');
+  });
+
+  it('says so when neither sharing nor copying works', async () => {
+    setClipboard(vi.fn().mockRejectedValue(new Error('blocked')));
+    expect(await shareResult('I solved it!')).toBe('failed');
   });
 });

@@ -23,7 +23,8 @@ const trackMock = vi.mocked(track);
 
 // Android's Back button: the test presses it by calling the game's handler
 const androidBack = vi.hoisted(() => ({ press: null as null | (() => boolean) }));
-vi.mock('../native', () => ({
+vi.mock('../native', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../native')>()),
   onAndroidBack: (handler: () => boolean) => {
     androidBack.press = handler;
     return () => {};
@@ -577,6 +578,17 @@ describe('finishing the puzzle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share result' }));
     expect(await screen.findByText('Copied, ready to paste')).toBeInTheDocument();
     expect(writeText.mock.calls[0][0]).toContain('AI Mini Crossword');
+  });
+
+  it('"Share result" says so when the result could not be shared', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('blocked')) },
+      configurable: true,
+    });
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result' }));
+    expect(await screen.findByText("Couldn't share this time. Please try again.")).toBeInTheDocument();
   });
 
   it('"Back to Home" at the top leaves the puzzle at any time', async () => {

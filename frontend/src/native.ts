@@ -54,3 +54,43 @@ export function onAndroidBack(handleBack: () => boolean): () => void {
     stop?.();
   };
 }
+
+export type ShareOutcome = "shared" | "copied" | "cancelled" | "failed";
+
+const isCancel = (err: unknown) =>
+  (err instanceof Error && (err.name === "AbortError" || /cancel/i.test(err.message))) ||
+  /cancel/i.test(String(err));
+
+/**
+ * Shares the player's result through the phone's own share menu.
+ * - iPhone and Android apps: Capacitor's share add-on (their in-app web view
+ *   has no reliable share menu of its own).
+ * - Website: the browser's share menu where there is one, otherwise the text
+ *   is copied so the player can paste it.
+ * Closing the share menu without sharing is "cancelled", not a failure.
+ */
+export async function shareResult(text: string): Promise<ShareOutcome> {
+  if (Capacitor.getPlatform() !== "web") {
+    try {
+      const { Share } = await import("@capacitor/share");
+      await Share.share({ text, dialogTitle: "Share your result" });
+      return "shared";
+    } catch (err) {
+      if (isCancel(err)) return "cancelled";
+      // fall through to copying the text
+    }
+  } else if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({ text });
+      return "shared";
+    } catch (err) {
+      if (isCancel(err)) return "cancelled";
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    return "copied";
+  } catch {
+    return "failed";
+  }
+}
