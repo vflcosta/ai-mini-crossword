@@ -14,9 +14,10 @@ export const GRID_SIZE = 7;
 /**
  * Theme buttons on the home screen. These are shared by everyone and never
  * count against a player's daily limit; the backend lists the same themes in
- * backend/utils/puzzle_service.py (a backend test checks they match).
+ * backend/utils/featured.py (a backend test checks they match), together
+ * with each theme's daily angles.
  */
-export const FEATURED_THEMES = ["History", "Space", "Art", "Nature", "Science"];
+export const FEATURED_THEMES = ["History", "Space", "Art", "Nature", "Science", "Music"];
 
 /** A small picture for each featured theme button (decoration only). */
 export const THEME_ICONS: Record<string, string> = {
@@ -25,6 +26,7 @@ export const THEME_ICONS: Record<string, string> = {
   Art: "🎨",
   Nature: "🌿",
   Science: "🔬",
+  Music: "🎵",
 };
 
 /** A new puzzle day starts at midnight here (keep in sync with PUZZLE_TIMEZONE on the backend). */

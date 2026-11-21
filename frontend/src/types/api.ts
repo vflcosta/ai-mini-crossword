@@ -26,6 +26,8 @@ export interface PuzzleMeta {
   new_puzzles_left: number;
   /** when the day (and the limits) start over, ISO date-time */
   resets_at: string;
+  /** today's angle of a featured theme, e.g. "Ancient Egypt" for History */
+  angle?: string;
 }
 
 export interface BackendPayloadWithMeta extends BackendPayload {

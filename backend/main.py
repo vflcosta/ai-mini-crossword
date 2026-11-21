@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional
 from utils.crossword_gen import generate_crossword as gen_crossword
+from utils.featured import featured_today
 from utils.puzzle_service import LimitReached, PuzzleService
 
 logger = logging.getLogger("crossword")
@@ -109,6 +110,16 @@ class GenerateRequest(BaseModel):
 @app.get("/")
 def root():
     return {"status": "ok", "message": "AI Mini Crossword backend is running!"}
+
+
+@app.get("/featured")
+def featured_themes():
+    """
+    The featured themes with today's angle for each, for the home screen:
+    {"date": "2026-11-21", "themes": [{"theme": "History", "angle": "Ancient Egypt"}, ...]}
+    """
+    day = puzzles.today()
+    return {"date": day.isoformat(), "themes": featured_today(day)}
 
 
 @app.post("/generate-crossword")

@@ -52,6 +52,22 @@ export async function generateCrossword(
 }
 
 /**
+ * Today's angle for each featured theme, e.g. { History: "Ancient Egypt" },
+ * from GET /featured. Empty when the backend cannot be reached: the theme
+ * buttons then simply show their names.
+ */
+export async function fetchFeaturedAngles(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch(`${API_BASE}/featured`);
+    if (!res.ok) return {};
+    const body: { themes?: Array<{ theme: string; angle: string }> } = await res.json();
+    return Object.fromEntries((body.themes ?? []).map((t) => [t.theme, t.angle]));
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Convenience function we added earlier for the newer version:
  * fetches the backend and immediately turns it into a Crossword
  */

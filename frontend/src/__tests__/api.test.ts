@@ -2,7 +2,7 @@
  * The call from the app to the backend. `fetch` is faked, so no server is needed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchCrossword, generateCrossword, LimitReachedError } from '../api';
+import { fetchCrossword, fetchFeaturedAngles, generateCrossword, LimitReachedError } from '../api';
 
 const PAYLOAD = {
   grid: [['C', 'A', 'T'], ['#', '#', '#'], ['#', '#', '#']],
@@ -113,5 +113,32 @@ describe('fetchCrossword', () => {
   it('labels a puzzle without a theme as "Random"', async () => {
     const cw = await fetchCrossword();
     expect(cw.theme).toBe('Random');
+  });
+});
+
+describe('fetchFeaturedAngles', () => {
+  it("asks GET /featured and returns today's angle for each theme", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        date: '2026-11-21',
+        themes: [
+          { theme: 'History', angle: 'Samurai Japan' },
+          { theme: 'Music', angle: 'Musicals' },
+        ],
+      }),
+    });
+    expect(await fetchFeaturedAngles()).toEqual({ History: 'Samurai Japan', Music: 'Musicals' });
+    expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:8000/featured');
+  });
+
+  it('returns nothing (instead of failing) when the backend answers with an error', async () => {
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
+    expect(await fetchFeaturedAngles()).toEqual({});
+  });
+
+  it('returns nothing when the backend cannot be reached', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    expect(await fetchFeaturedAngles()).toEqual({});
   });
 });

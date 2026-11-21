@@ -5,15 +5,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App, { limitNotice, puzzleDateLabel, timeUntil } from '../App';
-import { generateCrossword, LimitReachedError } from '../api';
+import { fetchFeaturedAngles, generateCrossword, LimitReachedError } from '../api';
 import { track } from '../analytics';
 import type { BackendPayload } from '../types/api';
 
 vi.mock('../api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api')>()),
   generateCrossword: vi.fn(),
+  fetchFeaturedAngles: vi.fn(),
 }));
 const generateMock = vi.mocked(generateCrossword);
+const anglesMock = vi.mocked(fetchFeaturedAngles);
+const ANGLES = {
+  History: 'Samurai Japan', Space: 'The Moon', Art: 'Photography',
+  Nature: 'Big cats', Science: 'Atoms', Music: 'Musicals',
+};
 
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
@@ -68,7 +74,7 @@ const letters = () => squares().map(letterIn).join('');
 const tap = (index: number) => fireEvent.click(squares()[index]);
 /** Press a key on the game's own A–Z keyboard. */
 const press = (letter: string) =>
-  fireEvent.click(screen.getByRole('button', { name: letter, exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: letter }));
 const pressDelete = () => fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 /** Press a key on a physical keyboard. */
 const keyDown = (key: string, extra: Partial<KeyboardEventInit> = {}) =>
@@ -93,6 +99,8 @@ beforeEach(() => {
   generateMock.mockReset();
   trackMock.mockReset();
   generateMock.mockResolvedValue(PUZZLE);
+  anglesMock.mockReset();
+  anglesMock.mockResolvedValue({});
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(window, 'alert').mockImplementation(() => {});
@@ -226,6 +234,52 @@ describe('home screen', () => {
 
 });
 
+describe('featured themes', () => {
+  it('six themes, including Music, each with its own picture', () => {
+    render(<App />);
+    const tiles = document.querySelectorAll('.theme-tile');
+    expect(Array.from(tiles).map((t) => t.getAttribute('aria-label'))).toEqual([
+      'History', 'Space', 'Art', 'Nature', 'Science', 'Music',
+    ]);
+    expect(screen.getByRole('button', { name: 'Music' })).toHaveTextContent('🎵');
+  });
+
+  it("shows today's angle under each theme", async () => {
+    anglesMock.mockResolvedValue(ANGLES);
+    render(<App />);
+    expect(await screen.findByText('Samurai Japan')).toBeInTheDocument();
+    expect(screen.getByText('Musicals')).toBeInTheDocument();
+    // screen readers hear the plain name, then the angle as a description
+    const history = screen.getByRole('button', { name: 'History' });
+    expect(history).toHaveAccessibleDescription('Samurai Japan');
+  });
+
+  it('the themes still work when the angles cannot be loaded', async () => {
+    render(<App />);
+    await waitFor(() => expect(anglesMock).toHaveBeenCalled());
+    expect(document.querySelector('.theme-tile-angle')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
+    await waitFor(() => expect(squares()).toHaveLength(SOLUTION.length));
+    expect(generateMock).toHaveBeenCalledWith('Music', 7);
+  });
+
+  it('the loading screen names the theme and its angle', async () => {
+    anglesMock.mockResolvedValue(ANGLES);
+    generateMock.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    await screen.findByText('The Moon');
+    fireEvent.click(screen.getByRole('button', { name: 'Space' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Creating your Space · The Moon crossword…'
+    );
+  });
+
+  it('says the featured themes are free, with a new angle every day', () => {
+    render(<App />);
+    expect(screen.getByText('Free to play · a new angle every day')).toBeInTheDocument();
+  });
+});
+
 describe('theme box after a puzzle', () => {
   const themeBox = () => screen.getByPlaceholderText('Type any theme') as HTMLInputElement;
 
@@ -331,7 +385,7 @@ describe("the game's own keyboard", () => {
     const keyboard = screen.getByLabelText('Letter keyboard');
     expect(keyboard.querySelectorAll('button')).toHaveLength(27);
     for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-      expect(screen.getByRole('button', { name: letter, exact: true })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: letter })).toBeInTheDocument();
     }
     expect(document.querySelector('input, textarea, [contenteditable]')).toBeNull();
   });
@@ -623,7 +677,7 @@ describe('look and feel', () => {
 
   it('featured theme buttons keep their plain names for screen readers', () => {
     render(<App />);
-    for (const name of ['History', 'Space', 'Art', 'Nature', 'Science']) {
+    for (const name of ['History', 'Space', 'Art', 'Nature', 'Science', 'Music']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
   });
@@ -774,7 +828,7 @@ describe('daily limits', () => {
 
   it('featured themes are labelled as free', () => {
     render(<App />);
-    expect(screen.getByText(/featured themes are free/i)).toBeInTheDocument();
+    expect(screen.getByText(/free to play/i)).toBeInTheDocument();
   });
 });
 
