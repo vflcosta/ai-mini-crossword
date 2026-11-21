@@ -8,8 +8,8 @@ export const API_BASE: string = (
   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
 
-/** Puzzle size: 5x5 is the classic newspaper mini. */
-export const GRID_SIZE = 5;
+/** Puzzle size: 7x7, for today's puzzle and themes alike. */
+export const GRID_SIZE = 7;
 
 /**
  * Theme buttons on the home screen. These are shared by everyone and never

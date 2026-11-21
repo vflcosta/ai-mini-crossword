@@ -104,3 +104,6 @@ app/src/main/res/xml/config.xml
 *.jks
 *.keystore
 keystore.properties
+
+# Signed builds made in Android Studio (Build > Generate Signed App Bundle)
+app/release/

@@ -30,9 +30,9 @@ describe('generateCrossword', () => {
     expect(result).toEqual(PAYLOAD);
   });
 
-  it('defaults to the classic 5x5 mini', async () => {
+  it('defaults to the game\'s 7x7 grid', async () => {
     await generateCrossword('space');
-    expect(sentBody().size).toBe(5);
+    expect(sentBody().size).toBe(7);
   });
 
   it('talks to the local backend when no address is configured', async () => {

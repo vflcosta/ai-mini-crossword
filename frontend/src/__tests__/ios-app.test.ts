@@ -85,6 +85,27 @@ describe('Android app setup', () => {
     expect(read('android/app/build.gradle')).toContain(`applicationId "${appId}"`);
   });
 
+  it('an upright screen is preferred, not required, so the app is not hidden from any device', () => {
+    // Found by Google Play when the first closed test was sent for review:
+    // "android.hardware.screen.portrait" restricted which devices could install it.
+    expect(manifest()).toMatch(
+      /<uses-feature\s+android:name="android\.hardware\.screen\.portrait"\s+android:required="false"\s*\/>/,
+    );
+  });
+
+  it('each upload to Google Play has a new version number', () => {
+    // Google refuses a version code it has seen before. Version 1 is already
+    // in Play Console (internal test), so the next upload must be higher.
+    const gradle = read('android/app/build.gradle');
+    const code = Number(gradle.match(/versionCode\s+(\d+)/)?.[1]);
+    expect(code).toBeGreaterThanOrEqual(2);
+    expect(gradle).toMatch(/versionName\s+"\d+\.\d+(\.\d+)?"/);
+  });
+
+  it('signed builds made on the Mac are never added to the code', () => {
+    expect(read('android/.gitignore')).toMatch(/^app\/release\/$/m);
+  });
+
   it('the app stays upright and the page shrinks above the keyboard', () => {
     expect(manifest()).toContain('android:screenOrientation="portrait"');
     expect(manifest()).toContain('android:windowSoftInputMode="adjustResize"');
@@ -100,6 +121,13 @@ describe('Android app setup', () => {
     expect(JSON.parse(read('package.json')).dependencies).toHaveProperty('@capacitor/app');
     expect(read('android/capacitor.settings.gradle')).toContain(':capacitor-app');
     expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorApp');
+  });
+
+  it('the share add-on is installed and packed into both apps', () => {
+    expect(JSON.parse(read('package.json')).dependencies).toHaveProperty('@capacitor/share');
+    expect(read('android/capacitor.settings.gradle')).toContain(':capacitor-share');
+    expect(read('android/app/capacitor.build.gradle')).toContain(':capacitor-share');
+    expect(read('ios/App/CapApp-SPM/Package.swift')).toContain('CapacitorShare');
   });
 
   it('the Google Play signing key can never be added to the code', () => {

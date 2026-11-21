@@ -32,7 +32,7 @@ export function ClueLists({ across, down, current, revealed, onSelect }: ClueLis
                 <span>
                   {clue.clue}
                   {revealed.has(`${clue.number}-${clue.direction}`) && (
-                    <span className="clue-list-revealed"> (revealed)</span>
+                    <span className="clue-list-revealed"> (answer shown)</span>
                   )}
                 </span>
               </button>
