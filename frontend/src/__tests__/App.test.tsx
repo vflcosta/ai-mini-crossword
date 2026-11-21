@@ -457,6 +457,15 @@ describe('finishing the puzzle', () => {
     expect(screen.getByText(/^Solved in 0:0\d$/)).toBeInTheDocument();
   });
 
+  it('celebrates with letter tiles spelling YAY (decoration, hidden from screen readers)', async () => {
+    await startRandomPuzzle();
+    fillAll(SOLUTION);
+    const celebration = screen.getByTestId('celebration');
+    expect(celebration).toHaveAttribute('aria-hidden', 'true');
+    expect(Array.from(celebration.querySelectorAll('.celebrate-tile')).map((t) => t.textContent).join('')).toBe('YAY');
+    expect(celebration.querySelectorAll('.celebrate-piece').length).toBeGreaterThan(0);
+  });
+
   it('names the theme for a themed puzzle', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'History' }));

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Clue, Crossword } from "../types/crossword";
 import {
   afterTyping,
@@ -288,11 +288,7 @@ export function Game({ crossword: cw, label, isDaily, isDesktop, onBack, onFinis
   const results = (
     <section role="dialog" aria-label="Puzzle complete" className="results-sheet">
       <div className="results-head">
-        <div className="results-check" aria-hidden="true">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7.5" />
-          </svg>
-        </div>
+        <Celebration />
         <h2 className="results-title">Puzzle complete!</h2>
         <p className="results-text">
           You solved {isDaily ? "today's puzzle" : `the ${label} puzzle`} in {formatTime(elapsed)}.
@@ -425,6 +421,48 @@ export function Game({ crossword: cw, label, isDaily, isDesktop, onBack, onFinis
           {sheet && results}
           {reviewing && reviewBar}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Confetti pieces: where each one flies to (px), its colour and its turn. */
+const CONFETTI = [
+  [-96, -38, "#7C3AED", 160], [-70, -70, "#F59E0B", -120], [-34, -86, "#EC4899", 200],
+  [0, -94, "#14B8A6", -90], [36, -86, "#C4B5FD", 140], [72, -68, "#7C3AED", -200],
+  [98, -34, "#F59E0B", 120], [-110, 2, "#14B8A6", -160], [110, 4, "#EC4899", 180],
+  [-84, 30, "#C4B5FD", 90], [86, 32, "#14B8A6", -140], [-46, 40, "#F59E0B", 220],
+  [48, 42, "#7C3AED", -100], [0, 46, "#EC4899", 160],
+] as const;
+
+/** Three letter tiles spelling YAY pop in, like letters typed in the grid,
+ * with a burst of confetti. Decoration only (the heading says it in words). */
+function Celebration() {
+  return (
+    <div className="celebrate" data-testid="celebration" aria-hidden="true">
+      <div className="celebrate-confetti">
+        {CONFETTI.map(([x, y, color, turn], i) => (
+          <span
+            key={i}
+            className="celebrate-piece"
+            style={
+              {
+                "--x": `${x}px`,
+                "--y": `${y}px`,
+                "--turn": `${turn}deg`,
+                background: color,
+                animationDelay: `${0.25 + (i % 4) * 0.04}s`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+      <div className="celebrate-tiles">
+        {"YAY".split("").map((letter, i) => (
+          <span key={i} className="celebrate-tile" style={{ animationDelay: `${i * 0.12}s` }}>
+            {letter}
+          </span>
+        ))}
       </div>
     </div>
   );
