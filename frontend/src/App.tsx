@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { backendToCrossword } from "./utils/transform";
-import { generateCrossword, LimitReachedError } from "./api";
+import { fetchFeaturedAngles, generateCrossword, LimitReachedError } from "./api";
 import { FEATURED_THEMES, GRID_SIZE, PUZZLE_TIMEZONE, THEME_ICONS } from "./config";
 import { HeroCrossword } from "./components/HeroCrossword";
 import { useIsDesktop } from "./hooks";
@@ -74,6 +74,18 @@ export default function App() {
   const [loadingLabel, setLoadingLabel] = useState("");
   const [puzzleType, setPuzzleType] = useState<PuzzleType>("daily");
   const isDesktop = useIsDesktop();
+  // today's angle for each featured theme ("History" -> "Ancient Egypt")
+  const [angles, setAngles] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (view !== "home") return;
+    let live = true;
+    fetchFeaturedAngles().then((found) => {
+      if (live && Object.keys(found).length) setAngles(found);
+    });
+    return () => {
+      live = false;
+    };
+  }, [view]);
 
   // the privacy policy has its own address (…/#privacy) so it can be linked to
   const [showPrivacy, setShowPrivacy] = useState(isPrivacyHash);
@@ -118,9 +130,10 @@ export default function App() {
   const generate = async (themeText: string) => {
     const wanted = themeText.trim();
     const label = wanted || DAILY_LABEL;
+    const angle = angles[wanted];
     setNotice(null);
     try {
-      setLoadingLabel(label);
+      setLoadingLabel(angle ? `${label} · ${angle}` : label);
       setLoading(true);
       const payload = await generateCrossword(wanted || null, GRID_SIZE);
       if (payload.meta) setNewPuzzlesLeft(payload.meta.new_puzzles_left);
@@ -219,23 +232,34 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <div className="pill-row">
+              <div className="theme-grid">
                 {FEATURED_THEMES.map((label) => (
                   <button
                     key={label}
                     type="button"
-                    className="pill-btn"
+                    className="theme-tile"
+                    aria-label={label}
+                    aria-describedby={angles[label] ? `angle-${label}` : undefined}
                     onClick={() => {
                       setTheme(label);
                       generate(label);
                     }}
                   >
-                    <span aria-hidden>{THEME_ICONS[label]}</span>
-                    {label}
+                    <span className="theme-tile-icon" aria-hidden>
+                      {THEME_ICONS[label]}
+                    </span>
+                    <span className="theme-tile-text">
+                      <span className="theme-tile-name">{label}</span>
+                      {angles[label] && (
+                        <span className="theme-tile-angle" id={`angle-${label}`}>
+                          Today: {angles[label]}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>
-              <p className="daily-caption">Featured themes are free to play anytime</p>
+              <p className="daily-caption">Featured themes are free to play, with a new angle every day</p>
 
               <label className="field-label" htmlFor="theme-input">
                 Curious about something else?

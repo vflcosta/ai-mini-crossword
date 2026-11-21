@@ -14,6 +14,9 @@ Every puzzle costs AI calls, so:
 * Today's puzzle and the featured themes on the home screen never count
   against a player: they are shared, so each is made at most once a day.
 * A day starts at midnight in PUZZLE_TIMEZONE.
+* Each featured theme has a daily angle (utils/featured.py): the AI is asked
+  for "Ancient Egypt (History)" rather than just "History", and the angle is
+  sent back in the puzzle's meta so the game can show it.
 
 Everything is kept in memory. If the server restarts, today's puzzles are
 made again on the next request (on the free Render plan that happens after
@@ -26,7 +29,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Callable, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-FEATURED_THEMES = ("History", "Space", "Art", "Nature", "Science")
+from utils.featured import FEATURED_THEMES, angle_for, prompt_theme  # noqa: F401
 
 
 class LimitReached(Exception):
@@ -99,9 +102,11 @@ class PuzzleService:
         key = (day, size, normalize_theme(theme))
         free = self.is_free(theme)
 
+        angle = angle_for(theme, day)
+
         cached = self._cache.get(key)
         if cached is not None:
-            return cached, self._meta(player, cached=True, free=free)
+            return cached, self._meta(player, cached=True, free=free, angle=angle)
 
         # one lock per puzzle, so 100 people opening today's puzzle at
         # midnight trigger one generation, not 100
@@ -110,15 +115,15 @@ class PuzzleService:
         with key_lock:
             cached = self._cache.get(key)
             if cached is not None:
-                return cached, self._meta(player, cached=True, free=free)
+                return cached, self._meta(player, cached=True, free=free, angle=angle)
 
             self._check_limits(day, player, free)
-            puzzle = self._generate(theme, size)
+            puzzle = self._generate(prompt_theme(theme, day), size)
             if puzzle.get("fallback"):
                 # the AI was unavailable: show the built-in puzzle, but don't
                 # keep it for the day and don't charge the player for it
                 puzzle = {k: v for k, v in puzzle.items() if k != "fallback"}
-                return puzzle, self._meta(player, cached=False, free=free)
+                return puzzle, self._meta(player, cached=False, free=free, angle=angle)
             puzzle = {k: v for k, v in puzzle.items() if k != "fallback"}
 
             with self._lock:
@@ -129,7 +134,7 @@ class PuzzleService:
                 if not free:
                     pk = (day, player)
                     self._made_by_player[pk] = self._made_by_player.get(pk, 0) + 1
-            return puzzle, self._meta(player, cached=False, free=free)
+            return puzzle, self._meta(player, cached=False, free=free, angle=angle)
 
     # ---------- internals ----------
 
@@ -144,13 +149,16 @@ class PuzzleService:
         if made_by_player >= self.player_daily_limit:
             raise LimitReached("player_limit", self.player_daily_limit, self.resets_at())
 
-    def _meta(self, player: str, *, cached: bool, free: bool) -> dict:
-        return {
+    def _meta(self, player: str, *, cached: bool, free: bool, angle: Optional[str] = None) -> dict:
+        meta = {
             "cached": cached,
             "free": free,
             "new_puzzles_left": self.left_for(player),
             "resets_at": self.resets_at().isoformat(),
         }
+        if angle:
+            meta["angle"] = angle  # today's angle of a featured theme
+        return meta
 
     def _forget_old_days(self, today: date):
         for k in [k for k in self._cache if k[0] != today]:
