@@ -94,11 +94,11 @@ describe('Android app setup', () => {
   });
 
   it('each upload to Google Play has a new version number', () => {
-    // Google refuses a version code it has seen before. Version 1 is already
-    // in Play Console (internal test), so the next upload must be higher.
+    // Google refuses a version code it has seen before. Versions 1 and 2 are
+    // already in Play Console, so the next upload must be higher.
     const gradle = read('android/app/build.gradle');
     const code = Number(gradle.match(/versionCode\s+(\d+)/)?.[1]);
-    expect(code).toBeGreaterThanOrEqual(2);
+    expect(code).toBeGreaterThanOrEqual(3);
     expect(gradle).toMatch(/versionName\s+"\d+\.\d+(\.\d+)?"/);
   });
 

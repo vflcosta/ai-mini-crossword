@@ -44,9 +44,10 @@ const isFull = (clue: Clue, answers: Answers) =>
   cellsOf(clue).every((p) => answers[p.row]?.[p.col]);
 
 /**
- * Where the cursor goes after a letter: the next empty square of the same
- * word (wrapping round), else the first empty square of the next unfinished
- * clue. Stays put when the whole grid is full.
+ * Where the cursor goes after a letter: the next square of the same word,
+ * even if it already has a letter (so a word can be typed again over a wrong
+ * one). Only after the word's last square does it move on, to the first empty
+ * square of the next unfinished clue. Stays put when the whole grid is full.
  */
 export function afterTyping(
   cw: Crossword,
@@ -56,9 +57,7 @@ export function afterTyping(
 ): { pos: Pos; dir: Dir } {
   const cells = cellsOf(clue);
   const i = cells.findIndex((p) => p.row === at.row && p.col === at.col);
-  const rest = [...cells.slice(i + 1), ...cells.slice(0, i)];
-  const next = rest.find((p) => !answers[p.row][p.col]);
-  if (next) return { pos: next, dir: clue.direction };
+  if (i >= 0 && i < cells.length - 1) return { pos: cells[i + 1], dir: clue.direction };
 
   const order = clueOrder(cw);
   const j = order.findIndex((c) => clueKey(c) === clueKey(clue));
