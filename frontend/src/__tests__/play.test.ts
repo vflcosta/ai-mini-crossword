@@ -60,17 +60,17 @@ describe('moving around a 7x7 grid', () => {
     expect(clueAt(cw, { row: 1, col: 0 }, 'across')).toBeNull();
   });
 
-  it('after a letter, goes to the next empty square of the word, wrapping round', () => {
+  it('after a letter, goes to the next square of the word, even if it has a letter', () => {
     const answers = empty();
-    answers[0][0] = 'T';
-    answers[0][2] = 'U';
-    const to = afterTyping(cw, answers, { row: 0, col: 0 }, find(1, 'across'));
-    expect(to.pos).toEqual({ row: 0, col: 1 });
-    answers[0][1] = 'R';
-    expect(afterTyping(cw, answers, { row: 0, col: 1 }, find(1, 'across')).pos).toEqual({
+    'TXXXXXX'.split('').forEach((ch, c) => (answers[0][c] = ch));
+    expect(afterTyping(cw, answers, { row: 0, col: 0 }, find(1, 'across')).pos).toEqual({
       row: 0,
-      col: 3,
-    }); // skips the U that is already there
+      col: 1,
+    });
+    expect(afterTyping(cw, answers, { row: 0, col: 3 }, find(1, 'across')).pos).toEqual({
+      row: 0,
+      col: 4,
+    }); // the X already there does not make it skip ahead
   });
 
   it('after the last letter of a word, goes to the next unfinished clue', () => {

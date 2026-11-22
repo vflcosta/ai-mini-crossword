@@ -397,7 +397,7 @@ describe("the game's own keyboard", () => {
     expect(current()).toBe(SQUARE.L);
   });
 
-  it('typing skips squares that are already filled', async () => {
+  it('typing goes over letters already in the word, square by square', async () => {
     await startRandomPuzzle();
     tap(SQUARE.L);
     tap(SQUARE.L); // LEAF, down
@@ -405,7 +405,22 @@ describe("the game's own keyboard", () => {
     tap(SQUARE.P);
     tap(SQUARE.P); // back to PLANT, across
     press('P');
-    expect(current()).toBe(SQUARE.A); // the L was already there
+    expect(current()).toBe(SQUARE.L); // stays in the word, on the L already there
+  });
+
+  it('a wrong word can be typed again from its first square (added after Valentina had to tap each square to fix SCALE)', async () => {
+    await startRandomPuzzle();
+    'PXXXX'.split('').forEach(press); // a wrong word fills PLANT
+    expect(bar()).toHaveTextContent('It falls in autumn');
+    tap(SQUARE.P);
+    tap(SQUARE.P);
+    tap(SQUARE.P); // back to PLANT, across, on its first square
+    'PLAN'.split('').forEach(press);
+    expect(bar()).not.toHaveTextContent('It falls in autumn'); // still in PLANT
+    expect(current()).toBe(SQUARE.P + 4); // on its last square
+    press('T');
+    expect(['P', 'L', 'A', 'N', 'T'].map((_, i) => letterIn(squares()[SQUARE.P + i])).join('')).toBe('PLANT');
+    expect(bar()).toHaveTextContent('It falls in autumn'); // only now it moves on
   });
 
   it('a finished word jumps to the next unfinished clue', async () => {
